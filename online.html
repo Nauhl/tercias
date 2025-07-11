@@ -448,6 +448,167 @@
         // Enter para unirse
         document.getElementById('playerName').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') joinGame();
+        });
+    </script>
+</body>
+</html>Screen() {
+            waitingRoom.style.display = 'none';
+            gameScreen.style.display = 'block';
+        }
+        
+        function updateGameUI() {
+            const players = Object.values(gameData.players || {});
+            const playerIds = Object.keys(gameData.players || {});
+            
+            // Actualizar marcador
+            playersScores.innerHTML = players.map((p, i) => `
+                <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
+                    <div>🏅 ${p.name}</div>
+                    <div>${p.score || 0} pts</div>
+                </div>
+            `).join('');
+            
+            // Jugador actual
+            if (players[gameData.currentPlayer]) {
+                currentPlayerName.textContent = players[gameData.currentPlayer].name;
+            }
+            
+            // Mi mano
+            const myPlayer = gameData.players[myPlayerId];
+            if (myPlayer && myPlayer.hand) {
+                renderHand(myPlayer.hand);
+            }
+            
+            // Cartas restantes
+            if (gameData.deck) {
+                cardsLeft.textContent = gameData.deck.length;
+            }
+        }
+        
+        function renderHand(hand) {
+            playerHand.innerHTML = hand.map(card => 
+                `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
+                    ${card.value}${card.suit}
+                </div>`
+            ).join('');
+        }
+        
+        // Jugar carta
+        window.playCard = function(suit, value) {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            const myPlayer = gameData.players[myPlayerId];
+            const cardIndex = myPlayer.hand.findIndex(c => c.suit === suit && c.value === value);
+            
+            if (cardIndex !== -1) {
+                const card = myPlayer.hand[cardIndex];
+                const points = getCardValue(card);
+                
+                // Actualizar mano y puntuación
+                myPlayer.hand.splice(cardIndex, 1);
+                myPlayer.score = (myPlayer.score || 0) + points;
+                
+                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+                
+                // Verificar victoria
+                checkWin(myPlayer);
+            }
+        };
+        
+        // Terminar turno
+        window.endTurn = function() {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            const nextPlayer = (gameData.currentPlayer + 1) % playerIds.length;
+            set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
+        };
+        
+        // Robar carta
+        window.drawCard = function() {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            if (gameData.deck && gameData.deck.length > 0) {
+                const card = gameData.deck.pop();
+                const myPlayer = gameData.players[myPlayerId];
+                myPlayer.hand.push(card);
+                
+                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
+            }
+        };
+        
+        function checkWin(player) {
+            if (player.score >= 100 || player.hand.length === 0) {
+                showVictory(player.name, '🎯 Alcanzó la victoria!');
+            }
+        }
+        
+        function showVictory(winnerName, message) {
+            winnerInfo.innerHTML = `
+                <div>🏆 <strong>${winnerName}</strong> 🏆</div>
+                <div style="font-size: 0.8em; margin-top: 10px;">${message}</div>
+            `;
+            victoryModal.style.display = 'block';
+        }
+        
+        // Crear baraja
+        function createDeck() {
+            const suits = ['♠', '♥', '♦', '♣'];
+            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            const deck = [];
+            
+            for (let suit of suits) {
+                for (let value of values) {
+                    deck.push({
+                        suit: suit,
+                        value: value,
+                        color: (suit === '♥' || suit === '♦') ? 'red' : 'black'
+                    });
+                }
+            }
+            
+            // Mezclar
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            
+            return deck;
+        }
+        
+        function getCardValue(card) {
+            let value = 0;
+            if (card.value === 'A') value = 11;
+            else if (['J', 'Q', 'K'].includes(card.value)) value = 10;
+            else value = parseInt(card.value);
+            
+            if (card.color === 'red') value += 2;
+            return value;
+        }
+        
+        // Event listeners
+        document.getElementById('startGameBtn').onclick = startGame;
+        document.getElementById('drawCardBtn').onclick = drawCard;
+        document.getElementById('endTurnBtn').onclick = endTurn;
+        document.getElementById('playAgainBtn').onclick = () => {
+            victoryModal.style.display = 'none';
+            location.reload();
+        };
+        
+        // Modal info
+        document.getElementById('infoBtn').onclick = () => {
+            document.getElementById('infoModal').style.display = 'block';
+        };
+        document.querySelector('.close').onclick = () => {
+            document.getElementById('infoModal').style.display = 'none';
+        };
+        
+        // Enter para unirse
+        document.getElementById('playerName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinGame();
         });         <div>${p.score || 0} pts</div>
                 </div>
             `).join('');
