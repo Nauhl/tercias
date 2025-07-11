@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Cartas</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Juego de Cartas - 4 Jugadores</h1>
+            <button id="infoBtn" class="info-btn">ℹ️ Cómo Jugar</button>
+        </header>
+        
+        <div class="scoreboard">
+            <h3>🏆 Ranking de Jugadores</h3>
+            <div class="players-scores" id="playersScores">
+                <!-- Puntuaciones de jugadores -->
+            </div>
+        </div>
+        
+        <div class="current-player">
+            <h3>Turno de: <span id="currentPlayerName">Jugador 1</span></h3>
+        </div>
+        
+        <main class="game-area">
+            <div class="deck-area">
+                <div class="deck" id="deck">
+                    <div class="card card-back">Mazo<br><span id="cardsLeft">52</span></div>
+                </div>
+            </div>
+            
+            <div class="play-area" id="playArea">
+                <!-- Aquí aparecerán las cartas del juego -->
+            </div>
+            
+            <div class="player-hand" id="playerHand">
+                <!-- Mano del jugador actual -->
+            </div>
+        </main>
+        
+        <div class="controls">
+            <button id="newGameBtn">Nueva Partida</button>
+            <button id="drawCardBtn">Robar Carta</button>
+            <button id="endTurnBtn">Terminar Turno</button>
+        </div>
+    </div>
+    
+    <!-- Modal de victoria -->
+    <div id="victoryModal" class="victory-modal">
+        <div class="victory-content">
+            <h1>🎉 ¡VICTORIA! 🎉</h1>
+            <div class="winner-info" id="winnerInfo">
+                <!-- Información del ganador -->
+            </div>
+            <button class="victory-button" id="playAgainBtn">🎮 Jugar de Nuevo</button>
+        </div>
+        <!-- Confeti animado -->
+        <div class="confetti" style="left: 10%;"></div>
+        <div class="confetti" style="left: 20%;"></div>
+        <div class="confetti" style="left: 30%;"></div>
+        <div class="confetti" style="left: 40%;"></div>
+        <div class="confetti" style="left: 50%;"></div>
+        <div class="confetti" style="left: 60%;"></div>
+        <div class="confetti" style="left: 70%;"></div>
+        <div class="confetti" style="left: 80%;"></div>
+        <div class="confetti" style="left: 90%;"></div>
+    </div>
+    
+    <!-- Modal de información -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>📋 Cómo Jugar</h2>
+            <div class="rules">
+                <h3>🎯 Objetivo:</h3>
+                <p>Ser el jugador con más puntos al final del juego.</p>
+                
+                <h3>🎮 Reglas:</h3>
+                <ul>
+                    <li>Cada jugador recibe 5 cartas al inicio</li>
+                    <li>En tu turno, puedes jugar cartas haciendo clic en ellas</li>
+                    <li>Cada carta jugada suma puntos según su valor</li>
+                    <li>Puedes robar una carta adicional por turno</li>
+                    <li>Termina tu turno cuando hayas jugado tus cartas</li>
+                </ul>
+                
+                <h3>💯 Puntuación:</h3>
+                <ul>
+                    <li>Números (2-10): Valor de la carta</li>
+                    <li>J, Q, K: 10 puntos cada una</li>
+                    <li>As: 11 puntos</li>
+                    <li>Cartas rojas: +2 puntos bonus</li>
+                </ul>
+                
+                <h3>🏁 Final del juego:</h3>
+                <p>El juego puede terminar de 3 formas:</p>
+                <ul>
+                    <li>🎯 <strong>100 puntos:</strong> Primer jugador en alcanzar 100 puntos gana</li>
+                    <li>🃏 <strong>Sin cartas:</strong> Primer jugador en quedarse sin cartas gana</li>
+                    <li>📦 <strong>Mazo vacío:</strong> Si se acaba el mazo, gana quien tenga más puntos</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
