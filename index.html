@@ -124,6 +124,7 @@
         <div class="controls">
             <button id="drawCardBtn">Robar Carta</button>
             <button id="endTurnBtn">Terminar Turno</button>
+            <button onclick="leaveGameRoom()" style="background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-left: 10px;">🚪 Salir del Juego</button>
         </div>
     </div>
     
@@ -274,6 +275,15 @@
             location.reload();
         };
         
+        // Salir del juego durante la partida
+        window.leaveGameRoom = function() {
+            if (myPlayerId && gameRoom) {
+                const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
+                remove(playerRef);
+            }
+            location.reload();
+        };
+        
         // Expulsar jugador
         window.kickPlayer = function(playerId) {
             if (Object.keys(gameData.players || {})[0] === myPlayerId) {
@@ -399,12 +409,23 @@
             const playerHandElement = document.getElementById('playerHand');
             playerHandElement.innerHTML = '';
             
-            hand.forEach(card => {
+            if (!hand || !Array.isArray(hand)) {
+                playerHandElement.innerHTML = '<p>Sin cartas</p>';
+                return;
+            }
+            
+            hand.forEach((card, index) => {
                 const cardElement = document.createElement('div');
                 cardElement.className = `card card-front ${card.color}`;
                 cardElement.textContent = `${card.value}${card.suit}`;
+                cardElement.style.margin = '5px';
+                cardElement.style.display = 'inline-block';
                 
-                cardElement.addEventListener('click', () => playCard(card.suit, card.value));
+                // Eventos para PC y móvil
+                cardElement.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    playCard(card.suit, card.value);
+                });
                 cardElement.addEventListener('touchstart', (e) => {
                     e.preventDefault();
                     playCard(card.suit, card.value);
@@ -425,9 +446,19 @@
                 const card = myPlayer.hand[cardIndex];
                 const points = getCardValue(card);
                 
+                // Remover carta de la mano
                 myPlayer.hand.splice(cardIndex, 1);
                 myPlayer.score = (myPlayer.score || 0) + points;
                 
+                // Mostrar carta en área de juego
+                const playAreaElement = document.getElementById('playArea');
+                const cardElement = document.createElement('div');
+                cardElement.className = `card card-front ${card.color}`;
+                cardElement.textContent = `${card.value}${card.suit}`;
+                cardElement.style.margin = '5px';
+                playAreaElement.appendChild(cardElement);
+                
+                // Actualizar Firebase
                 set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
                 
                 if (myPlayer.score >= 100 || myPlayer.hand.length === 0) {
@@ -439,6 +470,9 @@
         window.endTurn = function() {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            // Limpiar área de juego al cambiar turno
+            document.getElementById('playArea').innerHTML = '';
             
             const nextPlayer = (gameData.currentPlayer + 1) % playerIds.length;
             set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
@@ -453,8 +487,14 @@
                 const myPlayer = gameData.players[myPlayerId];
                 myPlayer.hand.push(card);
                 
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
+                // Actualizar tanto el jugador como el mazo
+                const updates = {};
+                updates[`games/${gameRoom}/players/${myPlayerId}`] = myPlayer;
+                updates[`games/${gameRoom}/deck`] = gameData.deck;
+                
+                Object.keys(updates).forEach(path => {
+                    set(ref(database, path), updates[path]);
+                });
             }
         };
         
