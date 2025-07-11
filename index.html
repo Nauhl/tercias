@@ -56,16 +56,105 @@
         .card:active {
             transform: translateY(-5px);
         }
+        .chat-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+        }
+        .chat-header {
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px 15px 0 0;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .chat-message {
+            margin: 5px 0;
+            padding: 5px 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-size: 12px;
+            color: white;
+        }
+        .chat-input-container {
+            padding: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        .chat-send {
+            padding: 8px 12px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .admin-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(220, 38, 38, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+        }
         @media (max-width: 768px) {
             .card {
                 width: 60px;
                 height: 90px;
                 font-size: 12px;
             }
+            .chat-container {
+                width: 250px;
+                height: 300px;
+                bottom: 10px;
+                right: 10px;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Panel de administrador -->
+    <div id="adminPanel" class="admin-panel" style="display: none;">
+        <h4>🔧 Panel Admin</h4>
+        <input type="text" id="adminRoomId" placeholder="ID de Sala" style="width: 100px; margin: 5px 0; padding: 5px;">
+        <br>
+        <button onclick="forceCloseRoom()" style="background: #dc2626; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin: 2px;">🗑️ Cerrar Sala</button>
+        <button onclick="toggleAdmin()" style="background: #6b7280; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin: 2px;">❌ Cerrar</button>
+    </div>
+
+    <!-- Chat -->
+    <div id="chatContainer" class="chat-container" style="display: none;">
+        <div class="chat-header">💬 Chat</div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-container">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Escribe un mensaje..." maxlength="100">
+            <button onclick="sendMessage()" class="chat-send">📤</button>
+        </div>
+    </div>
+
     <!-- Pantalla de login -->
     <div id="loginScreen" class="login-screen">
         <div class="login-form">
@@ -78,6 +167,8 @@
             <button onclick="joinGame()">Unirse al Juego</button>
             <br>
             <button onclick="copyRoomLink()" style="background: #f59e0b; margin-top: 10px;">🔗 Copiar Enlace</button>
+            <br>
+            <button onclick="toggleAdmin()" style="background: #6b7280; margin-top: 10px; font-size: 10px;">🔧 Admin</button>
         </div>
     </div>
     
@@ -184,7 +275,7 @@
     
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, set, onValue, remove, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
         
         const firebaseConfig = {
             apiKey: "AIzaSyAODDKrWgFHsOoTyS4CIeF6m83nADUfzyo",
@@ -203,19 +294,59 @@
         let myPlayerId = null;
         let gameRoom = null;
         let gameData = { players: {}, currentPlayer: 0, deck: [], gameStarted: false };
+        let myPlayerName = '';
         
-        // Generar sala aleatoria al cargar
+        // Generar sala aleatoria al cargar y recuperar estado
         window.addEventListener('load', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const roomFromUrl = urlParams.get('room');
             
-            if (roomFromUrl) {
-                document.getElementById('roomId').value = roomFromUrl;
+            // Recuperar estado guardado
+            const savedPlayerId = localStorage.getItem('myPlayerId');
+            const savedPlayerName = localStorage.getItem('playerName');
+            const savedGameRoom = localStorage.getItem('gameRoom');
+            
+            if (savedPlayerId && savedPlayerName && savedGameRoom) {
+                // Restaurar sesión
+                myPlayerId = savedPlayerId;
+                myPlayerName = savedPlayerName;
+                gameRoom = savedGameRoom;
+                
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('waitingRoom').style.display = 'block';
+                document.getElementById('chatContainer').style.display = 'block';
+                listenToGame();
+                listenToChat();
             } else {
-                const randomRoom = Math.floor(Math.random() * 9000) + 1000;
-                document.getElementById('roomId').value = randomRoom;
+                // Nueva sesión
+                if (roomFromUrl) {
+                    document.getElementById('roomId').value = roomFromUrl;
+                } else {
+                    const randomRoom = Math.floor(Math.random() * 9000) + 1000;
+                    document.getElementById('roomId').value = randomRoom;
+                }
             }
         });
+        
+        // Panel de administrador
+        window.toggleAdmin = function() {
+            const panel = document.getElementById('adminPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        };
+        
+        window.forceCloseRoom = function() {
+            const roomId = document.getElementById('adminRoomId').value.trim();
+            if (!roomId) {
+                alert('Ingresa un ID de sala');
+                return;
+            }
+            
+            const gameRef = ref(database, `games/room_${roomId}`);
+            remove(gameRef).then(() => {
+                alert(`Sala ${roomId} cerrada`);
+                document.getElementById('adminRoomId').value = '';
+            });
+        };
         
         // Unirse al juego
         window.joinGame = function() {
@@ -234,6 +365,12 @@
             
             gameRoom = 'room_' + roomId;
             myPlayerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            myPlayerName = playerName;
+            
+            // Guardar en localStorage
+            localStorage.setItem('myPlayerId', myPlayerId);
+            localStorage.setItem('playerName', playerName);
+            localStorage.setItem('gameRoom', gameRoom);
             
             const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
             
@@ -246,9 +383,51 @@
             }).then(() => {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('waitingRoom').style.display = 'block';
+                document.getElementById('chatContainer').style.display = 'block';
                 listenToGame();
+                listenToChat();
             });
         };
+        
+        // Chat functions
+        window.sendMessage = function() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message || !gameRoom || !myPlayerName) return;
+            
+            const chatRef = ref(database, `games/${gameRoom}/chat`);
+            push(chatRef, {
+                player: myPlayerName,
+                message: message,
+                timestamp: Date.now()
+            });
+            
+            input.value = '';
+        };
+        
+        function listenToChat() {
+            const chatRef = ref(database, `games/${gameRoom}/chat`);
+            onValue(chatRef, (snapshot) => {
+                const messages = snapshot.val();
+                updateChat(messages);
+            });
+        }
+        
+        function updateChat(messages) {
+            const chatMessages = document.getElementById('chatMessages');
+            if (!messages) {
+                chatMessages.innerHTML = '<div class="chat-message">💬 ¡Escribe algo para empezar!</div>';
+                return;
+            }
+            
+            const messageArray = Object.values(messages).sort((a, b) => a.timestamp - b.timestamp);
+            chatMessages.innerHTML = messageArray.slice(-20).map(msg => 
+                `<div class="chat-message"><strong>${msg.player}:</strong> ${msg.message}</div>`
+            ).join('');
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
         
         // Copiar enlace de sala
         window.copyRoomLink = function() {
@@ -272,6 +451,7 @@
                 const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
                 remove(playerRef);
             }
+            localStorage.clear();
             location.reload();
         };
         
@@ -281,6 +461,7 @@
                 const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
                 remove(playerRef);
             }
+            localStorage.clear();
             location.reload();
         };
         
@@ -296,6 +477,7 @@
         window.resetRoom = function() {
             const gameRef = ref(database, `games/${gameRoom}`);
             remove(gameRef).then(() => {
+                localStorage.clear();
                 location.reload();
             });
         };
@@ -308,6 +490,10 @@
                 if (data) {
                     gameData = data;
                     updateUI();
+                } else {
+                    // La sala fue eliminada
+                    localStorage.clear();
+                    location.reload();
                 }
             });
         }
@@ -421,7 +607,6 @@
                 cardElement.style.margin = '5px';
                 cardElement.style.display = 'inline-block';
                 
-                // Eventos para PC y móvil
                 cardElement.addEventListener('click', (e) => {
                     e.preventDefault();
                     playCard(card.suit, card.value);
@@ -446,11 +631,9 @@
                 const card = myPlayer.hand[cardIndex];
                 const points = getCardValue(card);
                 
-                // Remover carta de la mano
                 myPlayer.hand.splice(cardIndex, 1);
                 myPlayer.score = (myPlayer.score || 0) + points;
                 
-                // Mostrar carta en área de juego
                 const playAreaElement = document.getElementById('playArea');
                 const cardElement = document.createElement('div');
                 cardElement.className = `card card-front ${card.color}`;
@@ -458,7 +641,6 @@
                 cardElement.style.margin = '5px';
                 playAreaElement.appendChild(cardElement);
                 
-                // Actualizar Firebase
                 set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
                 
                 if (myPlayer.score >= 100 || myPlayer.hand.length === 0) {
@@ -471,7 +653,6 @@
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
-            // Limpiar área de juego al cambiar turno
             document.getElementById('playArea').innerHTML = '';
             
             const nextPlayer = (gameData.currentPlayer + 1) % playerIds.length;
@@ -487,7 +668,6 @@
                 const myPlayer = gameData.players[myPlayerId];
                 myPlayer.hand.push(card);
                 
-                // Actualizar tanto el jugador como el mazo
                 const updates = {};
                 updates[`games/${gameRoom}/players/${myPlayerId}`] = myPlayer;
                 updates[`games/${gameRoom}/deck`] = gameData.deck;
@@ -503,6 +683,7 @@
             remove(gameRef).then(() => {
                 showVictory(winnerName, message);
                 setTimeout(() => {
+                    localStorage.clear();
                     location.reload();
                 }, 5000);
             });
@@ -556,6 +737,7 @@
         document.getElementById('endTurnBtn').onclick = endTurn;
         document.getElementById('playAgainBtn').onclick = () => {
             document.getElementById('victoryModal').style.display = 'none';
+            localStorage.clear();
             location.reload();
         };
         
@@ -574,6 +756,10 @@
         
         document.getElementById('roomId').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') joinGame();
+        });
+        
+        document.getElementById('chatInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
         });
     </script>
 </body>
