@@ -73,10 +73,11 @@
             <p>Ingresa tu nombre y sala para jugar</p>
             <input type="text" id="playerName" placeholder="Tu nombre" maxlength="15">
             <br>
-            <input type="text" id="roomId" placeholder="ID de Sala (ej: 1234)" maxlength="10" value="1234">
+            <input type="text" id="roomId" placeholder="ID de Sala" maxlength="10">
             <br>
             <button onclick="joinGame()">Unirse al Juego</button>
-            <p style="font-size: 12px; margin-top: 10px; opacity: 0.8;">Comparte el mismo ID de sala con tus amigos</p>
+            <br>
+            <button onclick="copyRoomLink()" style="background: #f59e0b; margin-top: 10px;">🔗 Copiar Enlace</button>
         </div>
     </div>
     
@@ -84,6 +85,7 @@
     <div id="waitingRoom" class="waiting-room" style="display: none;">
         <h2>🕐 Sala de Espera</h2>
         <p>Sala: <span id="roomDisplay"></span></p>
+        <button onclick="copyRoomLink()" style="background: #f59e0b; margin: 5px; padding: 5px 10px; font-size: 12px; border: none; border-radius: 5px; color: white; cursor: pointer;">🔗 Copiar Enlace</button>
         <div id="playersList"></div>
         <p>Jugadores conectados: <span id="playerCount">0</span> (Mínimo 2, Máximo 4)</p>
         <button id="startGameBtn" style="display: none; margin-top: 15px; padding: 10px 20px; font-size: 16px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer;">🎮 Iniciar Juego</button>
@@ -201,32 +203,20 @@
         let gameRoom = null;
         let gameData = { players: {}, currentPlayer: 0, deck: [], gameStarted: false };
         
-        // Recuperar estado al cargar
+        // Generar sala aleatoria al cargar
         window.addEventListener('load', () => {
-            const savedPlayerId = localStorage.getItem('myPlayerId');
-            const savedPlayerName = localStorage.getItem('playerName');
-            const savedGameRoom = localStorage.getItem('gameRoom');
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomFromUrl = urlParams.get('room');
             
-            if (savedPlayerId && savedPlayerName && savedGameRoom) {
-                myPlayerId = savedPlayerId;
-                gameRoom = savedGameRoom;
-                
-                // Verificar si el jugador aún existe en Firebase
-                const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
-                onValue(playerRef, (snapshot) => {
-                    if (snapshot.exists()) {
-                        // El jugador existe, ir a sala de espera
-                        document.getElementById('loginScreen').style.display = 'none';
-                        document.getElementById('waitingRoom').style.display = 'block';
-                        listenToGame();
-                    } else {
-                        // El jugador no existe, limpiar y mostrar login
-                        localStorage.clear();
-                    }
-                }, { once: true });
+            if (roomFromUrl) {
+                document.getElementById('roomId').value = roomFromUrl;
+            } else {
+                const randomRoom = Math.floor(Math.random() * 9000) + 1000;
+                document.getElementById('roomId').value = randomRoom;
             }
         });
         
+        // Unirse al juego
         window.joinGame = function() {
             const playerName = document.getElementById('playerName').value.trim();
             const roomId = document.getElementById('roomId').value.trim();
@@ -244,58 +234,63 @@
             gameRoom = 'room_' + roomId;
             myPlayerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             
-            // Verificar si la sala tiene espacio
-            const gameRef = ref(database, `games/${gameRoom}`);
-            onValue(gameRef, (snapshot) => {
-                const data = snapshot.val();
-                const currentPlayers = data && data.players ? Object.keys(data.players).length : 0;
-                
-                if (currentPlayers >= 4) {
-                    alert('La sala está llena (4/4 jugadores)');
-                    return;
-                }
-                
-                // Guardar en localStorage
-                localStorage.setItem('myPlayerId', myPlayerId);
-                localStorage.setItem('playerName', playerName);
-                localStorage.setItem('gameRoom', gameRoom);
-                
-                const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
-                
-                set(playerRef, {
-                    id: myPlayerId,
-                    name: playerName,
-                    score: 0,
-                    hand: [],
-                    joinedAt: Date.now()
-                }).then(() => {
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('waitingRoom').style.display = 'block';
-                    listenToGame();
-                }).catch((error) => {
-                    console.error('Error al unirse:', error);
-                    alert('Error al unirse a la sala');
-                });
-            }, { once: true });
-        };
-        
-        window.resetRoom = function() {
-            const gameRef = ref(database, `games/${gameRoom}`);
-            remove(gameRef).then(() => {
-                localStorage.clear();
-                location.reload();
+            const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
+            
+            set(playerRef, {
+                id: myPlayerId,
+                name: playerName,
+                score: 0,
+                hand: [],
+                joinedAt: Date.now()
+            }).then(() => {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('waitingRoom').style.display = 'block';
+                listenToGame();
             });
         };
         
+        // Copiar enlace de sala
+        window.copyRoomLink = function() {
+            const roomId = document.getElementById('roomId').value.trim();
+            if (!roomId) {
+                alert('Ingresa un ID de sala primero');
+                return;
+            }
+            
+            const link = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+            navigator.clipboard.writeText(link).then(() => {
+                alert('Enlace copiado: ' + link);
+            }).catch(() => {
+                prompt('Copia este enlace:', link);
+            });
+        };
+        
+        // Salir de la sala
         window.leaveRoom = function() {
             if (myPlayerId && gameRoom) {
                 const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
                 remove(playerRef);
             }
-            localStorage.clear();
             location.reload();
         };
         
+        // Expulsar jugador
+        window.kickPlayer = function(playerId) {
+            if (Object.keys(gameData.players || {})[0] === myPlayerId) {
+                const playerRef = ref(database, `games/${gameRoom}/players/${playerId}`);
+                remove(playerRef);
+            }
+        };
+        
+        // Limpiar sala
+        window.resetRoom = function() {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            remove(gameRef).then(() => {
+                location.reload();
+            });
+        };
+        
+        // Escuchar cambios del juego
         function listenToGame() {
             const gameRef = ref(database, `games/${gameRoom}`);
             onValue(gameRef, (snapshot) => {
@@ -319,22 +314,22 @@
         }
         
         function updateWaitingRoom(players) {
-            // Mostrar ID de sala
             document.getElementById('roomDisplay').textContent = gameRoom ? gameRoom.replace('room_', '') : '';
             
-            // Limitar a máximo 4 jugadores
             const activePlayers = players.slice(0, 4);
+            const isHost = Object.keys(gameData.players || {})[0] === myPlayerId;
             
             document.getElementById('playersList').innerHTML = activePlayers.map((p, i) => 
-                `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px;">
-                    ${i + 1}. ${p.name} ${p.id === myPlayerId ? '(Tú)' : ''}
+                `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${i + 1}. ${p.name} ${p.id === myPlayerId ? '(Tú)' : ''}</span>
+                    ${isHost && p.id !== myPlayerId ? `<button onclick="kickPlayer('${p.id}')" style="background: #dc2626; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;">❌</button>` : ''}
                 </div>`
             ).join('');
             
             document.getElementById('playerCount').textContent = activePlayers.length;
             
             const startGameBtn = document.getElementById('startGameBtn');
-            if (activePlayers.length >= 2 && Object.keys(gameData.players || {})[0] === myPlayerId) {
+            if (activePlayers.length >= 2 && isHost) {
                 startGameBtn.style.display = 'block';
             } else {
                 startGameBtn.style.display = 'none';
@@ -388,14 +383,10 @@
             }
             
             const myPlayer = gameData.players[myPlayerId];
-            console.log('Mi jugador:', myPlayer);
-            console.log('Mi ID:', myPlayerId);
             
             if (myPlayer && myPlayer.hand && Array.isArray(myPlayer.hand)) {
-                console.log('Cartas en mano:', myPlayer.hand.length);
                 renderHand(myPlayer.hand);
             } else {
-                console.log('No se encontraron cartas para el jugador');
                 document.getElementById('playerHand').innerHTML = '<p>Sin cartas</p>';
             }
             
@@ -413,7 +404,6 @@
                 cardElement.className = `card card-front ${card.color}`;
                 cardElement.textContent = `${card.value}${card.suit}`;
                 
-                // Eventos para PC y móvil
                 cardElement.addEventListener('click', () => playCard(card.suit, card.value));
                 cardElement.addEventListener('touchstart', (e) => {
                     e.preventDefault();
@@ -441,7 +431,7 @@
                 set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
                 
                 if (myPlayer.score >= 100 || myPlayer.hand.length === 0) {
-                    showVictory(myPlayer.name, '🎯 ¡Victoria!');
+                    setTimeout(() => endGameForAll(myPlayer.name, '🎯 ¡Victoria!'), 1000);
                 }
             }
         };
@@ -468,10 +458,21 @@
             }
         };
         
+        function endGameForAll(winnerName, message) {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            remove(gameRef).then(() => {
+                showVictory(winnerName, message);
+                setTimeout(() => {
+                    location.reload();
+                }, 5000);
+            });
+        }
+        
         function showVictory(winnerName, message) {
             document.getElementById('winnerInfo').innerHTML = `
                 <div>🏆 <strong>${winnerName}</strong> 🏆</div>
                 <div style="font-size: 0.8em; margin-top: 10px;">${message}</div>
+                <div style="font-size: 0.6em; margin-top: 15px;">Regresando al inicio en 5 segundos...</div>
             `;
             document.getElementById('victoryModal').style.display = 'block';
         }
@@ -509,14 +510,12 @@
             return value;
         }
         
-        // Event listeners
         document.getElementById('startGameBtn').onclick = startGame;
         document.getElementById('resetRoomBtn').onclick = resetRoom;
         document.getElementById('drawCardBtn').onclick = drawCard;
         document.getElementById('endTurnBtn').onclick = endTurn;
         document.getElementById('playAgainBtn').onclick = () => {
             document.getElementById('victoryModal').style.display = 'none';
-            localStorage.clear();
             location.reload();
         };
         
