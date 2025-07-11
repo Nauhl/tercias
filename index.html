@@ -3,25 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Cartas</title>
+    <title>Juego de Cartas Online</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f4c3a, #2d8659);
+        }
+        .login-form {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .login-form input {
+            padding: 10px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 200px;
+        }
+        .waiting-room {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            margin: 20px;
+        }
+        .reset-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+        .reset-btn:hover {
+            background: #b91c1c;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Pantalla de login -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-form">
+            <h1>🃏 Juego de Cartas Online</h1>
+            <p>Ingresa tu nombre para jugar</p>
+            <input type="text" id="playerName" placeholder="Tu nombre" maxlength="15">
+            <br>
+            <button onclick="joinGame()">Unirse al Juego</button>
+        </div>
+    </div>
+    
+    <!-- Sala de espera -->
+    <div id="waitingRoom" class="waiting-room" style="display: none;">
+        <h2>🕐 Sala de Espera</h2>
+        <div id="playersList"></div>
+        <p>Jugadores conectados: <span id="playerCount">0</span> (Mínimo 2, Máximo 4)</p>
+        <button id="startGameBtn" style="display: none; margin-top: 15px; padding: 10px 20px; font-size: 16px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer;">🎮 Iniciar Juego</button>
+        <button id="resetRoomBtn" class="reset-btn">🔄 Limpiar Sala</button>
+    </div>
+    
+    <!-- Juego principal -->
+    <div id="gameScreen" class="container" style="display: none;">
         <header>
-            <h1>Juego de Cartas - 4 Jugadores</h1>
+            <h1>Juego de Cartas Online</h1>
             <button id="infoBtn" class="info-btn">ℹ️ Cómo Jugar</button>
         </header>
         
         <div class="scoreboard">
             <h3>🏆 Ranking de Jugadores</h3>
-            <div class="players-scores" id="playersScores">
-                <!-- Puntuaciones de jugadores -->
-            </div>
+            <div class="players-scores" id="playersScores"></div>
         </div>
         
         <div class="current-player">
-            <h3>Turno de: <span id="currentPlayerName">Jugador 1</span></h3>
+            <h3>Turno de: <span id="currentPlayerName">-</span></h3>
         </div>
         
         <main class="game-area">
@@ -31,17 +94,12 @@
                 </div>
             </div>
             
-            <div class="play-area" id="playArea">
-                <!-- Aquí aparecerán las cartas del juego -->
-            </div>
+            <div class="play-area" id="playArea"></div>
             
-            <div class="player-hand" id="playerHand">
-                <!-- Mano del jugador actual -->
-            </div>
+            <div class="player-hand" id="playerHand"></div>
         </main>
         
         <div class="controls">
-            <button id="newGameBtn">Nueva Partida</button>
             <button id="drawCardBtn">Robar Carta</button>
             <button id="endTurnBtn">Terminar Turno</button>
         </div>
@@ -51,12 +109,9 @@
     <div id="victoryModal" class="victory-modal">
         <div class="victory-content">
             <h1>🎉 ¡VICTORIA! 🎉</h1>
-            <div class="winner-info" id="winnerInfo">
-                <!-- Información del ganador -->
-            </div>
+            <div class="winner-info" id="winnerInfo"></div>
             <button class="victory-button" id="playAgainBtn">🎮 Jugar de Nuevo</button>
         </div>
-        <!-- Confeti animado -->
         <div class="confetti" style="left: 10%;"></div>
         <div class="confetti" style="left: 20%;"></div>
         <div class="confetti" style="left: 30%;"></div>
@@ -72,16 +127,16 @@
     <div id="infoModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>📋 Cómo Jugar</h2>
+            <h2>📋 Cómo Jugar Online</h2>
             <div class="rules">
                 <h3>🎯 Objetivo:</h3>
                 <p>Ser el jugador con más puntos al final del juego.</p>
                 
                 <h3>🎮 Reglas:</h3>
                 <ul>
+                    <li>Se necesitan de 2 a 4 jugadores</li>
                     <li>Cada jugador recibe 5 cartas al inicio</li>
                     <li>En tu turno, puedes jugar cartas haciendo clic en ellas</li>
-                    <li>Cada carta jugada suma puntos según su valor</li>
                     <li>Puedes robar una carta adicional por turno</li>
                     <li>Termina tu turno cuando hayas jugado tus cartas</li>
                 </ul>
@@ -95,7 +150,6 @@
                 </ul>
                 
                 <h3>🏁 Final del juego:</h3>
-                <p>El juego puede terminar de 3 formas:</p>
                 <ul>
                     <li>🎯 <strong>100 puntos:</strong> Primer jugador en alcanzar 100 puntos gana</li>
                     <li>🃏 <strong>Sin cartas:</strong> Primer jugador en quedarse sin cartas gana</li>
@@ -105,6 +159,271 @@
         </div>
     </div>
     
-    <script src="script.js"></script>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAODDKrWgFHsOoTyS4CIeF6m83nADUfzyo",
+            authDomain: "cartablas-game.firebaseapp.com",
+            databaseURL: "https://cartablas-game-default-rtdb.firebaseio.com",
+            projectId: "cartablas-game",
+            storageBucket: "cartablas-game.firebasestorage.app",
+            messagingSenderId: "986320435667",
+            appId: "1:986320435667:web:075fa8945c8036b479d726",
+            measurementId: "G-F8T0SGYWN2"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        
+        let myPlayerId = null;
+        let gameRoom = 'room_' + Math.random().toString(36).substr(2, 9);
+        let gameData = { players: {}, currentPlayer: 0, deck: [], gameStarted: false };
+        
+        window.addEventListener('load', () => {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            remove(gameRef);
+        });
+        
+        window.joinGame = function() {
+            const playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                alert('Ingresa tu nombre');
+                return;
+            }
+            
+            myPlayerId = 'player_' + Date.now();
+            const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
+            
+            set(playerRef, {
+                name: playerName,
+                score: 0,
+                hand: [],
+                joinedAt: Date.now()
+            }).then(() => {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('waitingRoom').style.display = 'block';
+                listenToGame();
+            });
+        };
+        
+        window.resetRoom = function() {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            remove(gameRef).then(() => {
+                location.reload();
+            });
+        };
+        
+        function listenToGame() {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            onValue(gameRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    gameData = data;
+                    updateUI();
+                }
+            });
+        }
+        
+        function updateUI() {
+            const players = Object.values(gameData.players || {});
+            
+            if (!gameData.gameStarted) {
+                updateWaitingRoom(players);
+            } else {
+                showGameScreen();
+                updateGameUI();
+            }
+        }
+        
+        function updateWaitingRoom(players) {
+            const activePlayers = players.slice(0, 4);
+            
+            document.getElementById('playersList').innerHTML = activePlayers.map((p, i) => 
+                `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px;">
+                    ${i + 1}. ${p.name} ${p.id === myPlayerId ? '(Tú)' : ''}
+                </div>`
+            ).join('');
+            
+            document.getElementById('playerCount').textContent = activePlayers.length;
+            
+            const startGameBtn = document.getElementById('startGameBtn');
+            if (activePlayers.length >= 2 && Object.keys(gameData.players || {})[0] === myPlayerId) {
+                startGameBtn.style.display = 'block';
+            } else {
+                startGameBtn.style.display = 'none';
+            }
+        }
+        
+        window.startGame = function() {
+            const players = Object.keys(gameData.players || {}).slice(0, 4);
+            if (players.length < 2) {
+                alert('Se necesitan al menos 2 jugadores');
+                return;
+            }
+            
+            const deck = createDeck();
+            const updates = {};
+            
+            players.forEach((playerId) => {
+                const hand = [];
+                for (let i = 0; i < 5; i++) {
+                    hand.push(deck.pop());
+                }
+                updates[`games/${gameRoom}/players/${playerId}/hand`] = hand;
+            });
+            
+            updates[`games/${gameRoom}/deck`] = deck;
+            updates[`games/${gameRoom}/gameStarted`] = true;
+            updates[`games/${gameRoom}/currentPlayer`] = 0;
+            
+            Object.keys(updates).forEach(path => {
+                set(ref(database, path), updates[path]);
+            });
+        };
+        
+        function showGameScreen() {
+            document.getElementById('waitingRoom').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+        }
+        
+        function updateGameUI() {
+            const players = Object.values(gameData.players || {});
+            
+            document.getElementById('playersScores').innerHTML = players.map((p, i) => `
+                <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
+                    <div>🏅 ${p.name}</div>
+                    <div>${p.score || 0} pts</div>
+                </div>
+            `).join('');
+            
+            if (players[gameData.currentPlayer]) {
+                document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
+            }
+            
+            const myPlayer = gameData.players[myPlayerId];
+            if (myPlayer && myPlayer.hand) {
+                renderHand(myPlayer.hand);
+            }
+            
+            if (gameData.deck) {
+                document.getElementById('cardsLeft').textContent = gameData.deck.length;
+            }
+        }
+        
+        function renderHand(hand) {
+            document.getElementById('playerHand').innerHTML = hand.map(card => 
+                `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
+                    ${card.value}${card.suit}
+                </div>`
+            ).join('');
+        }
+        
+        window.playCard = function(suit, value) {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            const myPlayer = gameData.players[myPlayerId];
+            const cardIndex = myPlayer.hand.findIndex(c => c.suit === suit && c.value === value);
+            
+            if (cardIndex !== -1) {
+                const card = myPlayer.hand[cardIndex];
+                const points = getCardValue(card);
+                
+                myPlayer.hand.splice(cardIndex, 1);
+                myPlayer.score = (myPlayer.score || 0) + points;
+                
+                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+                
+                if (myPlayer.score >= 100 || myPlayer.hand.length === 0) {
+                    showVictory(myPlayer.name, '🎯 ¡Victoria!');
+                }
+            }
+        };
+        
+        window.endTurn = function() {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            const nextPlayer = (gameData.currentPlayer + 1) % playerIds.length;
+            set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
+        };
+        
+        window.drawCard = function() {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            if (gameData.deck && gameData.deck.length > 0) {
+                const card = gameData.deck.pop();
+                const myPlayer = gameData.players[myPlayerId];
+                myPlayer.hand.push(card);
+                
+                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
+            }
+        };
+        
+        function showVictory(winnerName, message) {
+            document.getElementById('winnerInfo').innerHTML = `
+                <div>🏆 <strong>${winnerName}</strong> 🏆</div>
+                <div style="font-size: 0.8em; margin-top: 10px;">${message}</div>
+            `;
+            document.getElementById('victoryModal').style.display = 'block';
+        }
+        
+        function createDeck() {
+            const suits = ['♠', '♥', '♦', '♣'];
+            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            const deck = [];
+            
+            for (let suit of suits) {
+                for (let value of values) {
+                    deck.push({
+                        suit: suit,
+                        value: value,
+                        color: (suit === '♥' || suit === '♦') ? 'red' : 'black'
+                    });
+                }
+            }
+            
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            
+            return deck;
+        }
+        
+        function getCardValue(card) {
+            let value = 0;
+            if (card.value === 'A') value = 11;
+            else if (['J', 'Q', 'K'].includes(card.value)) value = 10;
+            else value = parseInt(card.value);
+            
+            if (card.color === 'red') value += 2;
+            return value;
+        }
+        
+        document.getElementById('startGameBtn').onclick = startGame;
+        document.getElementById('resetRoomBtn').onclick = resetRoom;
+        document.getElementById('drawCardBtn').onclick = drawCard;
+        document.getElementById('endTurnBtn').onclick = endTurn;
+        document.getElementById('playAgainBtn').onclick = () => {
+            document.getElementById('victoryModal').style.display = 'none';
+            location.reload();
+        };
+        
+        document.getElementById('infoBtn').onclick = () => {
+            document.getElementById('infoModal').style.display = 'block';
+        };
+        document.querySelector('.close').onclick = () => {
+            document.getElementById('infoModal').style.display = 'none';
+        };
+        
+        document.getElementById('playerName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinGame();
+        });
+    </script>
 </body>
 </html>
