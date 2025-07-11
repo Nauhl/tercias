@@ -48,6 +48,21 @@
         .reset-btn:hover {
             background: #b91c1c;
         }
+        .card {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .card:active {
+            transform: translateY(-5px);
+        }
+        @media (max-width: 768px) {
+            .card {
+                width: 60px;
+                height: 90px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -373,8 +388,15 @@
             }
             
             const myPlayer = gameData.players[myPlayerId];
-            if (myPlayer && myPlayer.hand) {
+            console.log('Mi jugador:', myPlayer);
+            console.log('Mi ID:', myPlayerId);
+            
+            if (myPlayer && myPlayer.hand && Array.isArray(myPlayer.hand)) {
+                console.log('Cartas en mano:', myPlayer.hand.length);
                 renderHand(myPlayer.hand);
+            } else {
+                console.log('No se encontraron cartas para el jugador');
+                document.getElementById('playerHand').innerHTML = '<p>Sin cartas</p>';
             }
             
             if (gameData.deck) {
@@ -383,11 +405,23 @@
         }
         
         function renderHand(hand) {
-            document.getElementById('playerHand').innerHTML = hand.map(card => 
-                `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
-                    ${card.value}${card.suit}
-                </div>`
-            ).join('');
+            const playerHandElement = document.getElementById('playerHand');
+            playerHandElement.innerHTML = '';
+            
+            hand.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = `card card-front ${card.color}`;
+                cardElement.textContent = `${card.value}${card.suit}`;
+                
+                // Eventos para PC y móvil
+                cardElement.addEventListener('click', () => playCard(card.suit, card.value));
+                cardElement.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    playCard(card.suit, card.value);
+                });
+                
+                playerHandElement.appendChild(cardElement);
+            });
         }
         
         window.playCard = function(suit, value) {
