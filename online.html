@@ -35,21 +35,22 @@
             border-radius: 15px;
             margin: 20px;
         }
-        .connection-status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 5px 10px;
+        .reset-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 16px;
             border-radius: 5px;
-            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 14px;
         }
-        .connected { background: #22c55e; color: white; }
-        .disconnected { background: #dc2626; color: white; }
+        .reset-btn:hover {
+            background: #b91c1c;
+        }
     </style>
 </head>
 <body>
-    <div id="connectionStatus" class="connection-status disconnected">Desconectado</div>
-    
     <!-- Pantalla de login -->
     <div id="loginScreen" class="login-screen">
         <div class="login-form">
@@ -67,6 +68,7 @@
         <div id="playersList"></div>
         <p>Jugadores conectados: <span id="playerCount">0</span> (Mínimo 2, Máximo 4)</p>
         <button id="startGameBtn" style="display: none; margin-top: 15px; padding: 10px 20px; font-size: 16px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer;">🎮 Iniciar Juego</button>
+        <button id="resetRoomBtn" class="reset-btn">🔄 Limpiar Sala</button>
     </div>
     
     <!-- Juego principal -->
@@ -159,38 +161,31 @@
     
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, onValue, push, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, set, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
         
-        // Configuración de Firebase (reemplaza con la tuya)
         const firebaseConfig = {
             apiKey: "AIzaSyAODDKrWgFHsOoTyS4CIeF6m83nADUfzyo",
-  authDomain: "cartablas-game.firebaseapp.com",
-  databaseURL: "https://cartablas-game-default-rtdb.firebaseio.com",
-  projectId: "cartablas-game",
-  storageBucket: "cartablas-game.firebasestorage.app",
-  messagingSenderId: "986320435667",
-  appId: "1:986320435667:web:075fa8945c8036b479d726",
-  measurementId: "G-F8T0SGYWN2"
+            authDomain: "cartablas-game.firebaseapp.com",
+            databaseURL: "https://cartablas-game-default-rtdb.firebaseio.com",
+            projectId: "cartablas-game",
+            storageBucket: "cartablas-game.firebasestorage.app",
+            messagingSenderId: "986320435667",
+            appId: "1:986320435667:web:075fa8945c8036b479d726",
+            measurementId: "G-F8T0SGYWN2"
         };
         
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
         
         let myPlayerId = null;
-        let gameRoom = 'room1'; // Sala fija por simplicidad
-        let gameData = { players: [], currentPlayer: 0, deck: [], gameStarted: false };
+        let gameRoom = 'room_' + Math.random().toString(36).substr(2, 9); // Sala única por sesión
+        let gameData = { players: {}, currentPlayer: 0, deck: [], gameStarted: false };
         
-        // Elementos DOM
-        const loginScreen = document.getElementById('loginScreen');
-        const waitingRoom = document.getElementById('waitingRoom');
-        const gameScreen = document.getElementById('gameScreen');
-        const playersScores = document.getElementById('playersScores');
-        const currentPlayerName = document.getElementById('currentPlayerName');
-        const playArea = document.getElementById('playArea');
-        const playerHand = document.getElementById('playerHand');
-        const cardsLeft = document.getElementById('cardsLeft');
-        const victoryModal = document.getElementById('victoryModal');
-        const winnerInfo = document.getElementById('winnerInfo');
+        // Limpiar sala al cargar la página
+        window.addEventListener('load', () => {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            remove(gameRef);
+        });
         
         // Unirse al juego
         window.joinGame = function() {
@@ -209,9 +204,17 @@
                 hand: [],
                 joinedAt: Date.now()
             }).then(() => {
-                loginScreen.style.display = 'none';
-                waitingRoom.style.display = 'block';
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('waitingRoom').style.display = 'block';
                 listenToGame();
+            });
+        };
+        
+        // Limpiar sala
+        window.resetRoom = function() {
+            const gameRef = ref(database, `games/${gameRoom}`);
+            remove(gameRef).then(() => {
+                location.reload();
             });
         };
         
@@ -227,7 +230,6 @@
             });
         }
         
-        // Actualizar interfaz
         function updateUI() {
             const players = Object.values(gameData.players || {});
             
@@ -240,39 +242,36 @@
         }
         
         function updateWaitingRoom(players) {
-            const playersList = document.getElementById('playersList');
-            const playerCount = document.getElementById('playerCount');
-            const startGameBtn = document.getElementById('startGameBtn');
+            // Limitar a máximo 4 jugadores
+            const activePlayers = players.slice(0, 4);
             
-            playersList.innerHTML = players.map((p, i) => 
+            document.getElementById('playersList').innerHTML = activePlayers.map((p, i) => 
                 `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px;">
                     ${i + 1}. ${p.name} ${p.id === myPlayerId ? '(Tú)' : ''}
                 </div>`
             ).join('');
             
-            playerCount.textContent = players.length;
+            document.getElementById('playerCount').textContent = activePlayers.length;
             
-            // Mostrar botón de inicio si hay 2+ jugadores y soy el primero
-            if (players.length >= 2 && Object.keys(gameData.players || {})[0] === myPlayerId) {
+            const startGameBtn = document.getElementById('startGameBtn');
+            if (activePlayers.length >= 2 && Object.keys(gameData.players || {})[0] === myPlayerId) {
                 startGameBtn.style.display = 'block';
             } else {
                 startGameBtn.style.display = 'none';
             }
         }
         
-        // Iniciar juego manualmente
         window.startGame = function() {
-            const players = Object.keys(gameData.players || {});
+            const players = Object.keys(gameData.players || {}).slice(0, 4);
             if (players.length < 2) {
                 alert('Se necesitan al menos 2 jugadores');
                 return;
             }
             
             const deck = createDeck();
-            
-            // Repartir cartas
             const updates = {};
-            players.forEach((playerId, index) => {
+            
+            players.forEach((playerId) => {
                 const hand = [];
                 for (let i = 0; i < 5; i++) {
                     hand.push(deck.pop());
@@ -284,55 +283,49 @@
             updates[`games/${gameRoom}/gameStarted`] = true;
             updates[`games/${gameRoom}/currentPlayer`] = 0;
             
-            // Actualizar Firebase
             Object.keys(updates).forEach(path => {
                 set(ref(database, path), updates[path]);
             });
         };
         
         function showGameScreen() {
-            waitingRoom.style.display = 'none';
-            gameScreen.style.display = 'block';
+            document.getElementById('waitingRoom').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
         }
         
         function updateGameUI() {
             const players = Object.values(gameData.players || {});
             const playerIds = Object.keys(gameData.players || {});
             
-            // Actualizar marcador
-            playersScores.innerHTML = players.map((p, i) => `
+            document.getElementById('playersScores').innerHTML = players.map((p, i) => `
                 <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
                     <div>🏅 ${p.name}</div>
                     <div>${p.score || 0} pts</div>
                 </div>
             `).join('');
             
-            // Jugador actual
             if (players[gameData.currentPlayer]) {
-                currentPlayerName.textContent = players[gameData.currentPlayer].name;
+                document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
             }
             
-            // Mi mano
             const myPlayer = gameData.players[myPlayerId];
             if (myPlayer && myPlayer.hand) {
                 renderHand(myPlayer.hand);
             }
             
-            // Cartas restantes
             if (gameData.deck) {
-                cardsLeft.textContent = gameData.deck.length;
+                document.getElementById('cardsLeft').textContent = gameData.deck.length;
             }
         }
         
         function renderHand(hand) {
-            playerHand.innerHTML = hand.map(card => 
+            document.getElementById('playerHand').innerHTML = hand.map(card => 
                 `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
                     ${card.value}${card.suit}
                 </div>`
             ).join('');
         }
         
-        // Jugar carta
         window.playCard = function(suit, value) {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
@@ -344,18 +337,17 @@
                 const card = myPlayer.hand[cardIndex];
                 const points = getCardValue(card);
                 
-                // Actualizar mano y puntuación
                 myPlayer.hand.splice(cardIndex, 1);
                 myPlayer.score = (myPlayer.score || 0) + points;
                 
                 set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
                 
-                // Verificar victoria
-                checkWin(myPlayer);
+                if (myPlayer.score >= 100 || myPlayer.hand.length === 0) {
+                    showVictory(myPlayer.name, '🎯 ¡Victoria!');
+                }
             }
         };
         
-        // Terminar turno
         window.endTurn = function() {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
@@ -364,7 +356,6 @@
             set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
         };
         
-        // Robar carta
         window.drawCard = function() {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
@@ -379,21 +370,14 @@
             }
         };
         
-        function checkWin(player) {
-            if (player.score >= 100 || player.hand.length === 0) {
-                showVictory(player.name, '🎯 Alcanzó la victoria!');
-            }
-        }
-        
         function showVictory(winnerName, message) {
-            winnerInfo.innerHTML = `
+            document.getElementById('winnerInfo').innerHTML = `
                 <div>🏆 <strong>${winnerName}</strong> 🏆</div>
                 <div style="font-size: 0.8em; margin-top: 10px;">${message}</div>
             `;
-            victoryModal.style.display = 'block';
+            document.getElementById('victoryModal').style.display = 'block';
         }
         
-        // Crear baraja
         function createDeck() {
             const suits = ['♠', '♥', '♦', '♣'];
             const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -409,7 +393,6 @@
                 }
             }
             
-            // Mezclar
             for (let i = deck.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -430,14 +413,14 @@
         
         // Event listeners
         document.getElementById('startGameBtn').onclick = startGame;
+        document.getElementById('resetRoomBtn').onclick = resetRoom;
         document.getElementById('drawCardBtn').onclick = drawCard;
         document.getElementById('endTurnBtn').onclick = endTurn;
         document.getElementById('playAgainBtn').onclick = () => {
-            victoryModal.style.display = 'none';
+            document.getElementById('victoryModal').style.display = 'none';
             location.reload();
         };
         
-        // Modal info
         document.getElementById('infoBtn').onclick = () => {
             document.getElementById('infoModal').style.display = 'block';
         };
@@ -445,312 +428,6 @@
             document.getElementById('infoModal').style.display = 'none';
         };
         
-        // Enter para unirse
-        document.getElementById('playerName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') joinGame();
-        });
-    </script>
-</body>
-</html>Screen() {
-            waitingRoom.style.display = 'none';
-            gameScreen.style.display = 'block';
-        }
-        
-        function updateGameUI() {
-            const players = Object.values(gameData.players || {});
-            const playerIds = Object.keys(gameData.players || {});
-            
-            // Actualizar marcador
-            playersScores.innerHTML = players.map((p, i) => `
-                <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
-                    <div>🏅 ${p.name}</div>
-                    <div>${p.score || 0} pts</div>
-                </div>
-            `).join('');
-            
-            // Jugador actual
-            if (players[gameData.currentPlayer]) {
-                currentPlayerName.textContent = players[gameData.currentPlayer].name;
-            }
-            
-            // Mi mano
-            const myPlayer = gameData.players[myPlayerId];
-            if (myPlayer && myPlayer.hand) {
-                renderHand(myPlayer.hand);
-            }
-            
-            // Cartas restantes
-            if (gameData.deck) {
-                cardsLeft.textContent = gameData.deck.length;
-            }
-        }
-        
-        function renderHand(hand) {
-            playerHand.innerHTML = hand.map(card => 
-                `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
-                    ${card.value}${card.suit}
-                </div>`
-            ).join('');
-        }
-        
-        // Jugar carta
-        window.playCard = function(suit, value) {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            const myPlayer = gameData.players[myPlayerId];
-            const cardIndex = myPlayer.hand.findIndex(c => c.suit === suit && c.value === value);
-            
-            if (cardIndex !== -1) {
-                const card = myPlayer.hand[cardIndex];
-                const points = getCardValue(card);
-                
-                // Actualizar mano y puntuación
-                myPlayer.hand.splice(cardIndex, 1);
-                myPlayer.score = (myPlayer.score || 0) + points;
-                
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                
-                // Verificar victoria
-                checkWin(myPlayer);
-            }
-        };
-        
-        // Terminar turno
-        window.endTurn = function() {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            const nextPlayer = (gameData.currentPlayer + 1) % playerIds.length;
-            set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
-        };
-        
-        // Robar carta
-        window.drawCard = function() {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            if (gameData.deck && gameData.deck.length > 0) {
-                const card = gameData.deck.pop();
-                const myPlayer = gameData.players[myPlayerId];
-                myPlayer.hand.push(card);
-                
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
-            }
-        };
-        
-        function checkWin(player) {
-            if (player.score >= 100 || player.hand.length === 0) {
-                showVictory(player.name, '🎯 Alcanzó la victoria!');
-            }
-        }
-        
-        function showVictory(winnerName, message) {
-            winnerInfo.innerHTML = `
-                <div>🏆 <strong>${winnerName}</strong> 🏆</div>
-                <div style="font-size: 0.8em; margin-top: 10px;">${message}</div>
-            `;
-            victoryModal.style.display = 'block';
-        }
-        
-        // Crear baraja
-        function createDeck() {
-            const suits = ['♠', '♥', '♦', '♣'];
-            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-            const deck = [];
-            
-            for (let suit of suits) {
-                for (let value of values) {
-                    deck.push({
-                        suit: suit,
-                        value: value,
-                        color: (suit === '♥' || suit === '♦') ? 'red' : 'black'
-                    });
-                }
-            }
-            
-            // Mezclar
-            for (let i = deck.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [deck[i], deck[j]] = [deck[j], deck[i]];
-            }
-            
-            return deck;
-        }
-        
-        function getCardValue(card) {
-            let value = 0;
-            if (card.value === 'A') value = 11;
-            else if (['J', 'Q', 'K'].includes(card.value)) value = 10;
-            else value = parseInt(card.value);
-            
-            if (card.color === 'red') value += 2;
-            return value;
-        }
-        
-        // Event listeners
-        document.getElementById('startGameBtn').onclick = startGame;
-        document.getElementById('drawCardBtn').onclick = drawCard;
-        document.getElementById('endTurnBtn').onclick = endTurn;
-        document.getElementById('playAgainBtn').onclick = () => {
-            victoryModal.style.display = 'none';
-            location.reload();
-        };
-        
-        // Modal info
-        document.getElementById('infoBtn').onclick = () => {
-            document.getElementById('infoModal').style.display = 'block';
-        };
-        document.querySelector('.close').onclick = () => {
-            document.getElementById('infoModal').style.display = 'none';
-        };
-        
-        // Enter para unirse
-        document.getElementById('playerName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') joinGame();
-        });         <div>${p.score || 0} pts</div>
-                </div>
-            `).join('');
-            
-            // Jugador actual
-            if (players[gameData.currentPlayer]) {
-                currentPlayerName.textContent = players[gameData.currentPlayer].name;
-            }
-            
-            // Mi mano
-            const myPlayer = gameData.players[myPlayerId];
-            if (myPlayer && myPlayer.hand) {
-                renderHand(myPlayer.hand);
-            }
-            
-            // Cartas restantes
-            if (gameData.deck) {
-                cardsLeft.textContent = gameData.deck.length;
-            }
-        }
-        
-        function renderHand(hand) {
-            playerHand.innerHTML = hand.map(card => 
-                `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
-                    ${card.value}${card.suit}
-                </div>`
-            ).join('');
-        }
-        
-        // Jugar carta
-        window.playCard = function(suit, value) {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            const myPlayer = gameData.players[myPlayerId];
-            const cardIndex = myPlayer.hand.findIndex(c => c.suit === suit && c.value === value);
-            
-            if (cardIndex !== -1) {
-                const card = myPlayer.hand[cardIndex];
-                const points = getCardValue(card);
-                
-                // Actualizar mano y puntuación
-                myPlayer.hand.splice(cardIndex, 1);
-                myPlayer.score = (myPlayer.score || 0) + points;
-                
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                
-                // Verificar victoria
-                checkWin(myPlayer);
-            }
-        };
-        
-        // Terminar turno
-        window.endTurn = function() {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            const nextPlayer = (gameData.currentPlayer + 1) % 4;
-            set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
-        };
-        
-        // Robar carta
-        window.drawCard = function() {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            if (gameData.deck && gameData.deck.length > 0) {
-                const card = gameData.deck.pop();
-                const myPlayer = gameData.players[myPlayerId];
-                myPlayer.hand.push(card);
-                
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
-            }
-        };
-        
-        function checkWin(player) {
-            if (player.score >= 100 || player.hand.length === 0) {
-                showVictory(player.name, '🎯 Alcanzó la victoria!');
-            }
-        }
-        
-        function showVictory(winnerName, message) {
-            winnerInfo.innerHTML = `
-                <div>🏆 <strong>${winnerName}</strong> 🏆</div>
-                <div style="font-size: 0.8em; margin-top: 10px;">${message}</div>
-            `;
-            victoryModal.style.display = 'block';
-        }
-        
-        // Crear baraja
-        function createDeck() {
-            const suits = ['♠', '♥', '♦', '♣'];
-            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-            const deck = [];
-            
-            for (let suit of suits) {
-                for (let value of values) {
-                    deck.push({
-                        suit: suit,
-                        value: value,
-                        color: (suit === '♥' || suit === '♦') ? 'red' : 'black'
-                    });
-                }
-            }
-            
-            // Mezclar
-            for (let i = deck.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [deck[i], deck[j]] = [deck[j], deck[i]];
-            }
-            
-            return deck;
-        }
-        
-        function getCardValue(card) {
-            let value = 0;
-            if (card.value === 'A') value = 11;
-            else if (['J', 'Q', 'K'].includes(card.value)) value = 10;
-            else value = parseInt(card.value);
-            
-            if (card.color === 'red') value += 2;
-            return value;
-        }
-        
-        // Event listeners
-        document.getElementById('drawCardBtn').onclick = drawCard;
-        document.getElementById('endTurnBtn').onclick = endTurn;
-        document.getElementById('playAgainBtn').onclick = () => {
-            victoryModal.style.display = 'none';
-            location.reload();
-        };
-        
-        // Modal info
-        document.getElementById('infoBtn').onclick = () => {
-            document.getElementById('infoModal').style.display = 'block';
-        };
-        document.querySelector('.close').onclick = () => {
-            document.getElementById('infoModal').style.display = 'none';
-        };
-        
-        // Enter para unirse
         document.getElementById('playerName').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') joinGame();
         });
