@@ -178,12 +178,24 @@
         const database = getDatabase(app);
         
         let myPlayerId = null;
-        let gameRoom = 'room_' + Math.random().toString(36).substr(2, 9);
+        let gameRoom = 'main_room'; // Sala fija para todos
         let gameData = { players: {}, currentPlayer: 0, deck: [], gameStarted: false };
         
+        // Recuperar estado al cargar
         window.addEventListener('load', () => {
-            const gameRef = ref(database, `games/${gameRoom}`);
-            remove(gameRef);
+            const savedPlayerId = localStorage.getItem('myPlayerId');
+            const savedPlayerName = localStorage.getItem('playerName');
+            const savedGameRoom = localStorage.getItem('gameRoom');
+            
+            if (savedPlayerId && savedPlayerName && savedGameRoom) {
+                myPlayerId = savedPlayerId;
+                gameRoom = savedGameRoom;
+                
+                // Ir directamente a la sala de espera
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('waitingRoom').style.display = 'block';
+                listenToGame();
+            }
         });
         
         window.joinGame = function() {
@@ -193,7 +205,13 @@
                 return;
             }
             
-            myPlayerId = 'player_' + Date.now();
+            myPlayerId = 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            
+            // Guardar en localStorage
+            localStorage.setItem('myPlayerId', myPlayerId);
+            localStorage.setItem('playerName', playerName);
+            localStorage.setItem('gameRoom', gameRoom);
+            
             const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
             
             set(playerRef, {
@@ -211,6 +229,10 @@
         window.resetRoom = function() {
             const gameRef = ref(database, `games/${gameRoom}`);
             remove(gameRef).then(() => {
+                // Limpiar localStorage
+                localStorage.removeItem('myPlayerId');
+                localStorage.removeItem('playerName');
+                localStorage.removeItem('gameRoom');
                 location.reload();
             });
         };
@@ -411,6 +433,10 @@
         document.getElementById('endTurnBtn').onclick = endTurn;
         document.getElementById('playAgainBtn').onclick = () => {
             document.getElementById('victoryModal').style.display = 'none';
+            // Limpiar localStorage y recargar
+            localStorage.removeItem('myPlayerId');
+            localStorage.removeItem('playerName');
+            localStorage.removeItem('gameRoom');
             location.reload();
         };
         
