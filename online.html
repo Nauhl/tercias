@@ -558,10 +558,10 @@
                     });
                     html += '</div></div>';
                 }
-                // Solo mostrar cartas boca abajo si no hay otras cartas
+                // Solo mostrar cartas boca abajo si no hay otras cartas - EXACTAMENTE 3
                 else if (faceDownCount > 0) {
                     html += `<div><h4>Cartas boca abajo (${faceDownCount}) - ¡Última oportunidad!:</h4><div style="display: flex; gap: 5px;">`;
-                    for (let i = 0; i < faceDownCount; i++) {
+                    for (let i = 0; i < Math.min(faceDownCount, 3); i++) {
                         html += `<div class="card card-back playable" onclick="playFaceDownCard(${i})">?</div>`;
                     }
                     html += '</div></div>';
@@ -572,7 +572,7 @@
                 
                 // Mostrar información de cartas no disponibles (solo como referencia)
                 if (handCount > 0 && (faceUpCount > 0 || faceDownCount > 0)) {
-                    html += `<div style="opacity: 0.5; margin-top: 15px;"><small>Tienes ${faceUpCount} cartas boca arriba y ${faceDownCount} boca abajo para después</small></div>`;
+                    html += `<div style="opacity: 0.5; margin-top: 15px;"><small>Tienes ${Math.min(faceUpCount, 3)} cartas boca arriba y ${Math.min(faceDownCount, 3)} boca abajo para después</small></div>`;
                 }
             }
             
@@ -611,6 +611,7 @@
             }
         };
         
+        // nuevo deployment
         window.playSelectedCards = function(source = 'hand', indices = selectedCards) {
             if (indices.length === 0) return;
             
