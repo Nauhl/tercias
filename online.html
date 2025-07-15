@@ -48,13 +48,85 @@
         .reset-btn:hover {
             background: #b91c1c;
         }
+        .ad-container {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            min-height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .donation-btn {
+            background: #f59e0b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 14px;
+        }
+        .card.playable {
+            border: 2px solid #22c55e;
+            cursor: pointer;
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .card.joker {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+        }
+        .card.selected {
+            border: 3px solid #fbbf24;
+            transform: translateY(-10px);
+            box-shadow: 0 6px 12px rgba(251, 191, 36, 0.5);
+        }
+        .rules-summary {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+            font-size: 14px;
+            backdrop-filter: blur(5px);
+        }
+        .rules-summary h4 {
+            margin: 0 0 10px 0;
+            color: #22c55e;
+        }
+        .rules-summary ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .rules-summary li {
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+        #wildcardModal .modal-content {
+            max-width: 500px;
+            text-align: center;
+        }
+        .wildcard-effect {
+            background: rgba(34, 197, 94, 0.1);
+            border: 2px solid #22c55e;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
     <!-- Pantalla de login -->
     <div id="loginScreen" class="login-screen">
         <div class="login-form">
-            <h1>🃏 Juego de Cartas Online</h1>
+            <h1>🃏 Tercias Online</h1>
             <p>Ingresa tu nombre para jugar</p>
             <input type="text" id="playerName" placeholder="Tu nombre" maxlength="15">
             <br>
@@ -66,15 +138,39 @@
     <div id="waitingRoom" class="waiting-room" style="display: none;">
         <h2>🕐 Sala de Espera</h2>
         <div id="playersList"></div>
-        <p>Jugadores conectados: <span id="playerCount">0</span> (Mínimo 2, Máximo 4)</p>
+        <p>Jugadores conectados: <span id="playerCount">0</span> (Mínimo 2, Máximo 5)</p>
+        
+        <!-- Resumen de reglas -->
+        <div class="rules-summary">
+            <h4>🎯 Reglas rápidas de Tercias:</h4>
+            <ul>
+                <li>🎯 Empieza quien tenga la carta más baja (3)</li>
+                <li>🃏 Juega carta igual o mayor valor</li>
+                <li>🔄 Siempre mantienes 3 cartas en mano</li>
+                <li>🍽️ Si no puedes jugar, "comes" todas las cartas del centro</li>
+                <li>🔢 Puedes jugar múltiples cartas del mismo valor</li>
+                <li>🏆 Gana el primero en quedarse sin cartas</li>
+            </ul>
+            <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-top: 10px;">
+                <strong>🃏 Comodines:</strong> 2=Paso, 8=Reversa, 10=Barre, Joker=Comodín
+            </div>
+        </div>
+        
+        <!-- Espacio publicitario -->
+        <div class="ad-container">
+            <!-- Aquí va tu código de AdSense -->
+            <div style="color: rgba(255,255,255,0.7); font-size: 12px;">💡 Apoya el juego</div>
+        </div>
+        
         <button id="startGameBtn" style="display: none; margin-top: 15px; padding: 10px 20px; font-size: 16px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer;">🎮 Iniciar Juego</button>
         <button id="resetRoomBtn" class="reset-btn">🔄 Limpiar Sala</button>
+        <button class="donation-btn" onclick="window.open('https://paypal.me/tuusuario', '_blank')">☕ Donar</button>
     </div>
     
     <!-- Juego principal -->
     <div id="gameScreen" class="container" style="display: none;">
         <header>
-            <h1>Juego de Cartas Online</h1>
+            <h1>Tercias Online</h1>
             <button id="infoBtn" class="info-btn">ℹ️ Cómo Jugar</button>
         </header>
         
@@ -100,8 +196,10 @@
         </main>
         
         <div class="controls">
-            <button id="drawCardBtn">Robar Carta</button>
-            <button id="endTurnBtn">Terminar Turno</button>
+            <button id="endTurnBtn">No puedo jugar (Comer cartas)</button>
+            <div id="gameInstructions" style="margin: 10px 0; font-size: 14px; color: #666;">
+                Haz clic en las cartas para seleccionarlas. Puedes seleccionar múltiples cartas del mismo valor.
+            </div>
         </div>
     </div>
     
@@ -127,35 +225,56 @@
     <div id="infoModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>📋 Cómo Jugar Online</h2>
+            <h2>📋 Cómo Jugar Tercias</h2>
             <div class="rules">
                 <h3>🎯 Objetivo:</h3>
-                <p>Ser el jugador con más puntos al final del juego.</p>
+                <p>Eliminar todas tus cartas para ganar.</p>
                 
-                <h3>🎮 Reglas:</h3>
+                <h3>🎮 Inicio del juego:</h3>
                 <ul>
-                    <li>Se necesitan de 2 a 4 jugadores</li>
-                    <li>Cada jugador recibe 5 cartas al inicio</li>
-                    <li>En tu turno, puedes jugar cartas haciendo clic en ellas</li>
-                    <li>Puedes robar una carta adicional por turno</li>
-                    <li>Termina tu turno cuando hayas jugado tus cartas</li>
+                    <li>Cada jugador acomoda sus 3 cartas boca arriba</li>
+                    <li>El jugador con la carta más baja (3 o menor disponible) empieza</li>
+                    <li>Siempre mantienes 3 cartas en tu mano</li>
                 </ul>
                 
-                <h3>💯 Puntuación:</h3>
+                <h3>🎯 Reglas básicas:</h3>
                 <ul>
-                    <li>Números (2-10): Valor de la carta</li>
-                    <li>J, Q, K: 10 puntos cada una</li>
-                    <li>As: 11 puntos</li>
-                    <li>Cartas rojas: +2 puntos bonus</li>
+                    <li>Juega carta igual o mayor valor que la del centro</li>
+                    <li>Después de jugar, roba una carta para mantener 3 en mano</li>
+                    <li>Si no puedes jugar, "comes" todas las cartas del centro</li>
+                    <li>Puedes jugar múltiples cartas del mismo valor a la vez</li>
                 </ul>
                 
-                <h3>🏁 Final del juego:</h3>
+                <h3>🃏 Cartas Especiales:</h3>
                 <ul>
-                    <li>🎯 <strong>100 puntos:</strong> Primer jugador en alcanzar 100 puntos gana</li>
-                    <li>🃏 <strong>Sin cartas:</strong> Primer jugador en quedarse sin cartas gana</li>
-                    <li>📦 <strong>Mazo vacío:</strong> Si se acaba el mazo, gana quien tenga más puntos</li>
+                    <li><strong>2:</strong> Paso - el siguiente jugador pierde turno</li>
+                    <li><strong>8:</strong> Reversa - cambia dirección del juego</li>
+                    <li><strong>10:</strong> Barre - elimina todas las cartas del centro</li>
+                    <li><strong>Joker:</strong> Comodín - tú decides su valor</li>
                 </ul>
+                
+                <h3>📊 Orden: 3, 4, 5, 6, 7, 9, J, Q, K, As</h3>
+                
+                <h3>🏁 Secuencia para ganar:</h3>
+                <ol>
+                    <li>Usa todas las cartas de tu mano</li>
+                    <li>Usa las 3 cartas boca arriba</li>
+                    <li>Usa las 3 cartas boca abajo (sin verlas)</li>
+                    <li>¡Ganas si juegas todas sin "comer"!</li>
+                </ol>
             </div>
+        </div>
+    </div>
+    
+    <!-- Modal de comodín -->
+    <div id="wildcardModal" class="modal">
+        <div class="modal-content">
+            <span class="close-wildcard">&times;</span>
+            <h2 id="wildcardTitle">🃏 Carta Especial</h2>
+            <div id="wildcardContent" class="rules">
+                <!-- Contenido dinámico -->
+            </div>
+            <button id="wildcardOkBtn" style="background: #22c55e; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin-top: 20px; font-size: 16px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">✨ ¡Entendido!</button>
         </div>
     </div>
     
@@ -242,8 +361,8 @@
         }
         
         function updateWaitingRoom(players) {
-            // Limitar a máximo 4 jugadores
-            const activePlayers = players.slice(0, 4);
+            // Limitar a máximo 5 jugadores
+            const activePlayers = players.slice(0, 5);
             
             document.getElementById('playersList').innerHTML = activePlayers.map((p, i) => 
                 `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px;">
@@ -262,7 +381,7 @@
         }
         
         window.startGame = function() {
-            const players = Object.keys(gameData.players || {}).slice(0, 4);
+            const players = Object.keys(gameData.players || {}).slice(0, 5);
             if (players.length < 2) {
                 alert('Se necesitan al menos 2 jugadores');
                 return;
@@ -270,18 +389,38 @@
             
             const deck = createDeck();
             const updates = {};
+            let lowestCard = { value: 'A', playerId: null, order: 999 };
             
             players.forEach((playerId) => {
-                const hand = [];
-                for (let i = 0; i < 5; i++) {
-                    hand.push(deck.pop());
-                }
+                const faceDown = [deck.pop(), deck.pop(), deck.pop()];
+                const faceUp = [deck.pop(), deck.pop(), deck.pop()];
+                const hand = [deck.pop(), deck.pop(), deck.pop()];
+                
+                // Encontrar la carta más baja en la mano para determinar quién empieza
+                hand.forEach(card => {
+                    const order = getCardOrder(card.value);
+                    if (order < lowestCard.order) {
+                        lowestCard = { value: card.value, playerId: playerId, order: order };
+                    }
+                });
+                
+                updates[`games/${gameRoom}/players/${playerId}/faceDown`] = faceDown;
+                updates[`games/${gameRoom}/players/${playerId}/faceUp`] = faceUp;
                 updates[`games/${gameRoom}/players/${playerId}/hand`] = hand;
+                updates[`games/${gameRoom}/players/${playerId}/totalCards`] = 9;
+                updates[`games/${gameRoom}/players/${playerId}/canDrawCards`] = true;
             });
             
+            // Determinar jugador inicial
+            const startingPlayerIndex = players.indexOf(lowestCard.playerId);
+            
             updates[`games/${gameRoom}/deck`] = deck;
+            updates[`games/${gameRoom}/playPile`] = [];
             updates[`games/${gameRoom}/gameStarted`] = true;
-            updates[`games/${gameRoom}/currentPlayer`] = 0;
+            updates[`games/${gameRoom}/currentPlayer`] = startingPlayerIndex;
+            updates[`games/${gameRoom}/direction`] = 1;
+            updates[`games/${gameRoom}/skipNext`] = false;
+            updates[`games/${gameRoom}/gamePhase`] = 'setup'; // setup, playing
             
             Object.keys(updates).forEach(path => {
                 set(ref(database, path), updates[path]);
@@ -300,7 +439,7 @@
             document.getElementById('playersScores').innerHTML = players.map((p, i) => `
                 <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
                     <div>🏅 ${p.name}</div>
-                    <div>${p.score || 0} pts</div>
+                    <div>${p.totalCards || 0} cartas</div>
                 </div>
             `).join('');
             
@@ -309,65 +448,204 @@
             }
             
             const myPlayer = gameData.players[myPlayerId];
-            if (myPlayer && myPlayer.hand) {
-                renderHand(myPlayer.hand);
+            if (myPlayer) {
+                renderPlayerArea(myPlayer);
             }
+            
+            renderPlayArea();
             
             if (gameData.deck) {
                 document.getElementById('cardsLeft').textContent = gameData.deck.length;
             }
+            
+            // Mostrar controles apropiados
+            updateControls();
         }
         
-        function renderHand(hand) {
-            document.getElementById('playerHand').innerHTML = hand.map(card => 
-                `<div class="card card-front ${card.color}" onclick="playCard('${card.suit}', '${card.value}')">
+        function renderPlayerArea(player) {
+            let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+            
+            // Cartas boca abajo
+            html += '<div><h4>Cartas boca abajo:</h4><div style="display: flex; gap: 5px;">';
+            for (let i = 0; i < (player.faceDown?.length || 0); i++) {
+                const canUseFaceDown = (player.hand?.length || 0) === 0 && (player.faceUp?.length || 0) === 0;
+                html += `<div class="card card-back ${canUseFaceDown ? 'playable' : ''}" 
+                         ${canUseFaceDown ? `onclick="playFaceDownCard(${i})"` : ''}>?</div>`;
+            }
+            html += '</div></div>';
+            
+            // Cartas boca arriba (visibles para todos)
+            html += '<div><h4>Cartas boca arriba:</h4><div style="display: flex; gap: 5px;">';
+            (player.faceUp || []).forEach((card, index) => {
+                const canPlay = (player.hand?.length || 0) === 0 && canPlayCard(card);
+                html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'}" 
+                         ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
                     ${card.value}${card.suit}
-                </div>`
-            ).join('');
+                </div>`;
+            });
+            html += '</div></div>';
+            
+            // Cartas en mano con selección múltiple
+            html += '<div><h4>Tu mano (${(player.hand || []).length}/3):</h4><div style="display: flex; gap: 5px;">';
+            (player.hand || []).forEach((card, index) => {
+                const isSelected = selectedCards.includes(index);
+                const canPlay = canPlayCard(card);
+                html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'} ${isSelected ? 'selected' : ''}" 
+                         ${canPlay ? `onclick="selectCard('hand', ${index})"` : ''}>
+                    ${card.value}${card.suit}
+                </div>`;
+            });
+            html += '</div></div>';
+            
+            html += '</div>';
+            document.getElementById('playerHand').innerHTML = html;
         }
         
-        window.playCard = function(suit, value) {
+        let selectedCards = [];
+        
+        window.selectCard = function(source, index) {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            if (source === 'hand') {
+                const cardIndex = selectedCards.indexOf(index);
+                if (cardIndex > -1) {
+                    selectedCards.splice(cardIndex, 1); // Deseleccionar
+                } else {
+                    const myPlayer = gameData.players[myPlayerId];
+                    const card = myPlayer.hand[index];
+                    
+                    // Solo permitir seleccionar cartas del mismo valor
+                    if (selectedCards.length === 0) {
+                        selectedCards.push(index);
+                    } else {
+                        const firstSelectedCard = myPlayer.hand[selectedCards[0]];
+                        if (card.value === firstSelectedCard.value) {
+                            selectedCards.push(index);
+                        }
+                    }
+                }
+                renderPlayerArea(gameData.players[myPlayerId]);
+            } else {
+                // Jugar carta boca arriba directamente
+                playSelectedCards('faceUp', [index]);
+            }
+        };
+        
+        window.playSelectedCards = function(source = 'hand', indices = selectedCards) {
+            if (indices.length === 0) return;
+            
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
             const myPlayer = gameData.players[myPlayerId];
-            const cardIndex = myPlayer.hand.findIndex(c => c.suit === suit && c.value === value);
+            const cardArray = source === 'hand' ? myPlayer.hand : myPlayer.faceUp;
+            const cardsToPlay = indices.map(i => cardArray[i]).filter(c => c);
             
-            if (cardIndex !== -1) {
-                const card = myPlayer.hand[cardIndex];
-                const points = getCardValue(card);
-                
-                myPlayer.hand.splice(cardIndex, 1);
-                myPlayer.score = (myPlayer.score || 0) + points;
-                
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                
-                if (myPlayer.score >= 100 || myPlayer.hand.length === 0) {
-                    showVictory(myPlayer.name, '🎯 ¡Victoria!');
-                }
+            if (cardsToPlay.length === 0) return;
+            
+            // Verificar que se puede jugar al menos una carta
+            if (!canPlayCard(cardsToPlay[0])) {
+                eatCards();
+                return;
             }
+            
+            // Remover cartas (en orden inverso para mantener índices)
+            indices.sort((a, b) => b - a).forEach(index => {
+                if (cardArray[index]) {
+                    const card = cardArray.splice(index, 1)[0];
+                    const playPile = gameData.playPile || [];
+                    playPile.push(card);
+                    set(ref(database, `games/${gameRoom}/playPile`), playPile);
+                    
+                    // Aplicar efectos especiales
+                    applyCardEffect(card);
+                }
+            });
+            
+            // Actualizar jugador
+            myPlayer.totalCards = (myPlayer.faceDown?.length || 0) + 
+                                 (myPlayer.faceUp?.length || 0) + 
+                                 (myPlayer.hand?.length || 0);
+            
+            // Verificar victoria
+            if (myPlayer.totalCards === 0) {
+                showVictory(myPlayer.name, '🎯 ¡Sin cartas!');
+                return;
+            }
+            
+            // Robar cartas para mantener 3 en mano (si es posible y necesario)
+            if (source === 'hand' && myPlayer.canDrawCards && gameData.deck?.length > 0) {
+                const cardsToDraw = Math.min(cardsToPlay.length, gameData.deck.length, 3 - myPlayer.hand.length);
+                for (let i = 0; i < cardsToDraw; i++) {
+                    if (gameData.deck.length > 0) {
+                        myPlayer.hand.push(gameData.deck.pop());
+                        myPlayer.totalCards++;
+                    }
+                }
+                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
+            }
+            
+            set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+            selectedCards = [];
+            nextTurn();
         };
+        
+        function nextTurn() {
+            const playerIds = Object.keys(gameData.players);
+            let nextPlayerIndex;
+            
+            if (gameData.skipNext) {
+                // Saltar el siguiente jugador
+                nextPlayerIndex = (gameData.currentPlayer + (2 * gameData.direction) + playerIds.length) % playerIds.length;
+                set(ref(database, `games/${gameRoom}/skipNext`), false);
+            } else {
+                nextPlayerIndex = (gameData.currentPlayer + gameData.direction + playerIds.length) % playerIds.length;
+            }
+            
+            set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayerIndex);
+        }
         
         window.endTurn = function() {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
-            const nextPlayer = (gameData.currentPlayer + 1) % playerIds.length;
-            set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayer);
+            // Si no puedes jugar ninguna carta, debes comer
+            const myPlayer = gameData.players[myPlayerId];
+            const hasPlayableCard = (myPlayer.hand || []).some(card => canPlayCard(card)) ||
+                                   ((myPlayer.hand?.length || 0) === 0 && (myPlayer.faceUp || []).some(card => canPlayCard(card)));
+            
+            if (!hasPlayableCard) {
+                eatCards();
+            } else {
+                nextTurn();
+            }
         };
         
-        window.drawCard = function() {
+        window.eatCards = function() {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
-            if (gameData.deck && gameData.deck.length > 0) {
-                const card = gameData.deck.pop();
-                const myPlayer = gameData.players[myPlayerId];
-                myPlayer.hand.push(card);
+            const myPlayer = gameData.players[myPlayerId];
+            const playPile = gameData.playPile || [];
+            
+            if (playPile.length > 0) {
+                // Agregar todas las cartas del centro a la mano
+                myPlayer.hand = myPlayer.hand || [];
+                myPlayer.hand.push(...playPile);
+                myPlayer.totalCards += playPile.length;
                 
+                // El jugador deja de robar cartas hasta tener 3 o menos
+                myPlayer.canDrawCards = myPlayer.hand.length <= 3;
+                
+                // Limpiar pila de juego
+                set(ref(database, `games/${gameRoom}/playPile`), []);
                 set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
+                
+                alert(`¡Comiste ${playPile.length} cartas! Ahora tienes ${myPlayer.hand.length} cartas en mano.`);
             }
+            
+            nextTurn();
         };
         
         function showVictory(winnerName, message) {
@@ -380,7 +658,7 @@
         
         function createDeck() {
             const suits = ['♠', '♥', '♦', '♣'];
-            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
             const deck = [];
             
             for (let suit of suits) {
@@ -393,6 +671,11 @@
                 }
             }
             
+            // Agregar 2 Jokers
+            deck.push({ suit: '🃏', value: 'Joker', color: 'joker' });
+            deck.push({ suit: '🃏', value: 'Joker', color: 'joker' });
+            
+            // Barajar
             for (let i = deck.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -401,20 +684,215 @@
             return deck;
         }
         
-        function getCardValue(card) {
-            let value = 0;
-            if (card.value === 'A') value = 11;
-            else if (['J', 'Q', 'K'].includes(card.value)) value = 10;
-            else value = parseInt(card.value);
+        function getCardOrder(value) {
+            const order = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '9': 6, 'J': 7, 'Q': 8, 'K': 9, 'A': 10 };
+            return order[value] || 0;
+        }
+        
+        function canPlayCard(card) {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return false;
             
-            if (card.color === 'red') value += 2;
-            return value;
+            const playPile = gameData.playPile || [];
+            if (playPile.length === 0) return true;
+            
+            const topCard = playPile[playPile.length - 1];
+            
+            // Cartas especiales siempre se pueden jugar
+            if (['2', '8', '10', 'Joker'].includes(card.value)) return true;
+            
+            // Carta normal debe ser igual o mayor que la carta superior
+            return getCardOrder(card.value) >= getCardOrder(topCard.value);
+        }
+        
+        function updateControls() {
+            const playerIds = Object.keys(gameData.players);
+            const isMyTurn = playerIds[gameData.currentPlayer] === myPlayerId;
+            const myPlayer = gameData.players[myPlayerId];
+            
+            document.getElementById('drawCardBtn').style.display = 'none'; // No se usa en Tercias
+            document.getElementById('endTurnBtn').textContent = isMyTurn ? 'No puedo jugar (Comer cartas)' : 'Esperar turno';
+            document.getElementById('endTurnBtn').disabled = !isMyTurn;
+            
+            // Botón para jugar cartas seleccionadas
+            let playBtn = document.getElementById('playSelectedBtn');
+            if (!playBtn) {
+                playBtn = document.createElement('button');
+                playBtn.id = 'playSelectedBtn';
+                playBtn.textContent = 'Jugar Cartas Seleccionadas';
+                playBtn.onclick = () => playSelectedCards();
+                document.querySelector('.controls').appendChild(playBtn);
+            }
+            playBtn.style.display = isMyTurn && selectedCards.length > 0 ? 'block' : 'none';
+        }
+        
+        function applyCardEffect(card) {
+            // Mostrar explicación del comodín
+            showWildcardExplanation(card);
+            
+            switch (card.value) {
+                case '2': // Paso
+                    set(ref(database, `games/${gameRoom}/skipNext`), true);
+                    break;
+                case '8': // Reversa
+                    const newDirection = gameData.direction * -1;
+                    set(ref(database, `games/${gameRoom}/direction`), newDirection);
+                    break;
+                case '10': // Barre
+                    set(ref(database, `games/${gameRoom}/playPile`), []);
+                    break;
+                case 'Joker': // Comodín
+                    // Por simplicidad, el Joker actúa como As
+                    break;
+            }
+        }
+        
+        function showWildcardExplanation(card) {
+            if (!['2', '8', '10', 'Joker'].includes(card.value)) return;
+            
+            const modal = document.getElementById('wildcardModal');
+            const title = document.getElementById('wildcardTitle');
+            const content = document.getElementById('wildcardContent');
+            
+            let explanation = '';
+            
+            switch (card.value) {
+                case '2':
+                    title.innerHTML = '🚫 Carta PASO (2)';
+                    explanation = `
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div style="font-size: 64px; margin: 20px 0;">🚫</div>
+                            <h3 style="color: #ef4444; margin: 15px 0;">El siguiente jugador pierde su turno</h3>
+                            <p style="font-size: 16px; line-height: 1.6;">La carta "2" hace que el siguiente jugador en la secuencia se salte su turno y pase al siguiente.</p>
+                            <div class="wildcard-effect">
+                                <strong>🎯 Efecto:</strong> Jugador actual → Siguiente SALTADO → Siguiente jugador juega
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case '8':
+                    title.innerHTML = '🔄 Carta REVERSA (8)';
+                    explanation = `
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div style="font-size: 64px; margin: 20px 0;">🔄</div>
+                            <h3 style="color: #8b5cf6; margin: 15px 0;">Cambia la dirección del juego</h3>
+                            <p style="font-size: 16px; line-height: 1.6;">La carta "8" invierte el orden de los turnos. Si iba en sentido horario, ahora va antihorario y viceversa.</p>
+                            <div class="wildcard-effect">
+                                <strong>🔄 Efecto:</strong> Dirección del juego se invierte completamente
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case '10':
+                    title.innerHTML = '🧹 Carta BARRE (10)';
+                    explanation = `
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div style="font-size: 64px; margin: 20px 0;">🧹</div>
+                            <h3 style="color: #f59e0b; margin: 15px 0;">Elimina todas las cartas del centro</h3>
+                            <p style="font-size: 16px; line-height: 1.6;">La carta "10" barre y elimina todas las cartas que estén en el centro de la mesa.</p>
+                            <div class="wildcard-effect">
+                                <strong>🧹 Efecto:</strong> Mesa queda vacía, cualquier carta se puede jugar después
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'Joker':
+                    title.innerHTML = '🃏 JOKER - Comodín';
+                    explanation = `
+                        <div style="text-align: center; margin: 20px 0;">
+                            <div style="font-size: 64px; margin: 20px 0;">🃏</div>
+                            <h3 style="color: #10b981; margin: 15px 0;">Carta comodín universal</h3>
+                            <p style="font-size: 16px; line-height: 1.6;">El Joker se puede jugar en cualquier momento y sobre cualquier carta.</p>
+                            <div class="wildcard-effect">
+                                <strong>🃏 Efecto:</strong> Actúa como la carta de mayor valor (As) para el siguiente jugador
+                            </div>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            content.innerHTML = explanation;
+            modal.style.display = 'block';
+        }
+        
+        function renderPlayArea() {
+            const playPile = gameData.playPile || [];
+            let html = '<h3>Mesa de juego</h3>';
+            
+            if (playPile.length === 0) {
+                html += '<div class="card card-back">Vacía</div>';
+            } else {
+                const topCard = playPile[playPile.length - 1];
+                html += `<div class="card card-front ${topCard.color}">
+                    ${topCard.value}${topCard.suit}
+                </div>`;
+            }
+            
+            document.getElementById('playArea').innerHTML = html;
+        }
+        
+        window.playFaceDownCard = function(index) {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
+            
+            const myPlayer = gameData.players[myPlayerId];
+            if (!myPlayer.faceDown || myPlayer.faceDown.length <= index) return;
+            
+            // Solo se puede usar si no hay cartas en mano ni boca arriba
+            if ((myPlayer.hand?.length || 0) > 0 || (myPlayer.faceUp?.length || 0) > 0) {
+                alert('Solo puedes usar cartas boca abajo cuando no tengas otras cartas disponibles');
+                return;
+            }
+            
+            const card = myPlayer.faceDown[index];
+            
+            // Remover carta boca abajo
+            myPlayer.faceDown.splice(index, 1);
+            
+            // Agregar a la pila de juego
+            const playPile = gameData.playPile || [];
+            playPile.push(card);
+            
+            // Aplicar efectos
+            applyCardEffect(card);
+            
+            // Actualizar total de cartas
+            myPlayer.totalCards = (myPlayer.faceDown?.length || 0) + 
+                                 (myPlayer.faceUp?.length || 0) + 
+                                 (myPlayer.hand?.length || 0);
+            
+            // Verificar victoria
+            if (myPlayer.totalCards === 0) {
+                showVictory(myPlayer.name, '🎯 ¡Sin cartas!');
+                return;
+            }
+            
+            // Verificar si la carta se puede jugar
+            const topCard = playPile.length > 1 ? playPile[playPile.length - 2] : null;
+            if (topCard && !canPlayCardValue(card, topCard)) {
+                // Si no se puede jugar, el jugador recoge toda la pila
+                myPlayer.hand = myPlayer.hand || [];
+                myPlayer.hand.push(...playPile);
+                myPlayer.totalCards += playPile.length;
+                set(ref(database, `games/${gameRoom}/playPile`), []);
+                alert('¡No se pudo jugar la carta! Recoges toda la pila.');
+            }
+            
+            // Actualizar base de datos
+            set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+            set(ref(database, `games/${gameRoom}/playPile`), playPile);
+            
+            nextTurn();
+        };
+        
+        function canPlayCardValue(card, topCard) {
+            if (['2', '8', '10', 'Joker'].includes(card.value)) return true;
+            return getCardOrder(card.value) >= getCardOrder(topCard.value);
         }
         
         // Event listeners
         document.getElementById('startGameBtn').onclick = startGame;
         document.getElementById('resetRoomBtn').onclick = resetRoom;
-        document.getElementById('drawCardBtn').onclick = drawCard;
         document.getElementById('endTurnBtn').onclick = endTurn;
         document.getElementById('playAgainBtn').onclick = () => {
             document.getElementById('victoryModal').style.display = 'none';
@@ -426,6 +904,26 @@
         };
         document.querySelector('.close').onclick = () => {
             document.getElementById('infoModal').style.display = 'none';
+        };
+        
+        // Event listeners para modal de comodines
+        document.querySelector('.close-wildcard').onclick = () => {
+            document.getElementById('wildcardModal').style.display = 'none';
+        };
+        document.getElementById('wildcardOkBtn').onclick = () => {
+            document.getElementById('wildcardModal').style.display = 'none';
+        };
+        
+        // Cerrar modales al hacer clic fuera
+        window.onclick = (event) => {
+            const infoModal = document.getElementById('infoModal');
+            const wildcardModal = document.getElementById('wildcardModal');
+            if (event.target === infoModal) {
+                infoModal.style.display = 'none';
+            }
+            if (event.target === wildcardModal) {
+                wildcardModal.style.display = 'none';
+            }
         };
         
         document.getElementById('playerName').addEventListener('keypress', (e) => {
