@@ -421,6 +421,7 @@
             updates[`games/${gameRoom}/direction`] = 1;
             updates[`games/${gameRoom}/skipNext`] = false;
             updates[`games/${gameRoom}/gamePhase`] = 'setup'; // setup, playing
+            updates[`games/${gameRoom}/setupComplete`] = {};
             
             Object.keys(updates).forEach(path => {
                 set(ref(database, path), updates[path]);
@@ -436,15 +437,25 @@
             const players = Object.values(gameData.players || {});
             const playerIds = Object.keys(gameData.players || {});
             
-            document.getElementById('playersScores').innerHTML = players.map((p, i) => `
-                <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
-                    <div>🏅 ${p.name}</div>
-                    <div>${p.totalCards || 0} cartas</div>
-                </div>
-            `).join('');
-            
-            if (players[gameData.currentPlayer]) {
-                document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
+            if (gameData.gamePhase === 'setup') {
+                document.getElementById('currentPlayerName').textContent = 'Fase de preparación - Acomoda tus cartas';
+                document.getElementById('playersScores').innerHTML = players.map((p, i) => `
+                    <div class="player-score">
+                        <div>🏅 ${p.name}</div>
+                        <div>${gameData.setupComplete?.[playerIds[i]] ? '✓ Listo' : '⏳ Preparando'}</div>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('playersScores').innerHTML = players.map((p, i) => `
+                    <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
+                        <div>🏅 ${p.name}</div>
+                        <div>${p.totalCards || 0} cartas</div>
+                    </div>
+                `).join('');
+                
+                if (players[gameData.currentPlayer]) {
+                    document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
+                }
             }
             
             const myPlayer = gameData.players[myPlayerId];
@@ -465,37 +476,69 @@
         function renderPlayerArea(player) {
             let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
             
-            // Cartas boca abajo
-            html += '<div><h4>Cartas boca abajo:</h4><div style="display: flex; gap: 5px;">';
-            for (let i = 0; i < (player.faceDown?.length || 0); i++) {
-                const canUseFaceDown = (player.hand?.length || 0) === 0 && (player.faceUp?.length || 0) === 0;
-                html += `<div class="card card-back ${canUseFaceDown ? 'playable' : ''}" 
-                         ${canUseFaceDown ? `onclick="playFaceDownCard(${i})"` : ''}>?</div>`;
+            if (gameData.gamePhase === 'setup') {
+                // Fase de preparación - permitir intercambio
+                html += '<div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px;">';
+                html += '<p><strong>📝 Fase de preparación:</strong> Haz clic en las cartas para intercambiar entre tu mano y las cartas boca arriba.</p>';
+                html += '</div>';
+                
+                // Cartas boca arriba (intercambiables)
+                html += '<div><h4>Cartas boca arriba (haz clic para intercambiar):</h4><div style="display: flex; gap: 5px;">';
+                (player.faceUp || []).forEach((card, index) => {
+                    html += `<div class="card card-front ${card.color} playable" onclick="swapCard('faceUp', ${index})">
+                        ${card.value}${card.suit}
+                    </div>`;
+                });
+                html += '</div></div>';
+                
+                // Cartas en mano (intercambiables)
+                html += `<div><h4>Tu mano (haz clic para intercambiar):</h4><div style="display: flex; gap: 5px;">`;
+                (player.hand || []).forEach((card, index) => {
+                    html += `<div class="card card-front ${card.color} playable" onclick="swapCard('hand', ${index})">
+                        ${card.value}${card.suit}
+                    </div>`;
+                });
+                html += '</div></div>';
+                
+                // Botón para confirmar preparación
+                const isReady = gameData.setupComplete?.[myPlayerId];
+                html += `<button onclick="confirmSetup()" style="background: ${isReady ? '#dc2626' : '#22c55e'}; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+                    ${isReady ? '❌ Cambiar cartas' : '✓ Confirmar preparación'}
+                </button>`;
+            } else {
+                // Juego normal
+                // Cartas boca abajo
+                html += '<div><h4>Cartas boca abajo:</h4><div style="display: flex; gap: 5px;">';
+                for (let i = 0; i < (player.faceDown?.length || 0); i++) {
+                    const canUseFaceDown = (player.hand?.length || 0) === 0 && (player.faceUp?.length || 0) === 0;
+                    html += `<div class="card card-back ${canUseFaceDown ? 'playable' : ''}" 
+                             ${canUseFaceDown ? `onclick="playFaceDownCard(${i})"` : ''}>?</div>`;
+                }
+                html += '</div></div>';
+                
+                // Cartas boca arriba (visibles para todos)
+                html += '<div><h4>Cartas boca arriba:</h4><div style="display: flex; gap: 5px;">';
+                (player.faceUp || []).forEach((card, index) => {
+                    const canPlay = (player.hand?.length || 0) === 0 && canPlayCard(card);
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'}" 
+                             ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
+                        ${card.value}${card.suit}
+                    </div>`;
+                });
+                html += '</div></div>';
+                
+                // Cartas en mano con selección múltiple
+                html += `<div><h4>Tu mano (${(player.hand || []).length}/3):</h4><div style="display: flex; gap: 5px;">`;
+                (player.hand || []).forEach((card, index) => {
+                    const isSelected = selectedCards.includes(index);
+                    const canPlay = canPlayCard(card);
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'} ${isSelected ? 'selected' : ''}" 
+                             ${canPlay ? `onclick="selectCard('hand', ${index})"` : ''}>
+                        ${card.value}${card.suit}
+                    </div>`;
+                });
+                html += '</div></div>';
             }
-            html += '</div></div>';
-            
-            // Cartas boca arriba (visibles para todos)
-            html += '<div><h4>Cartas boca arriba:</h4><div style="display: flex; gap: 5px;">';
-            (player.faceUp || []).forEach((card, index) => {
-                const canPlay = (player.hand?.length || 0) === 0 && canPlayCard(card);
-                html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'}" 
-                         ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
-                    ${card.value}${card.suit}
-                </div>`;
-            });
-            html += '</div></div>';
-            
-            // Cartas en mano con selección múltiple
-            html += '<div><h4>Tu mano (${(player.hand || []).length}/3):</h4><div style="display: flex; gap: 5px;">';
-            (player.hand || []).forEach((card, index) => {
-                const isSelected = selectedCards.includes(index);
-                const canPlay = canPlayCard(card);
-                html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'} ${isSelected ? 'selected' : ''}" 
-                         ${canPlay ? `onclick="selectCard('hand', ${index})"` : ''}>
-                    ${card.value}${card.suit}
-                </div>`;
-            });
-            html += '</div></div>';
             
             html += '</div>';
             document.getElementById('playerHand').innerHTML = html;
@@ -579,7 +622,8 @@
                 const cardsToDraw = Math.min(cardsToPlay.length, gameData.deck.length, 3 - myPlayer.hand.length);
                 for (let i = 0; i < cardsToDraw; i++) {
                     if (gameData.deck.length > 0) {
-                        myPlayer.hand.push(gameData.deck.pop());
+                        const drawnCard = gameData.deck.pop();
+                        myPlayer.hand.push(drawnCard);
                         myPlayer.totalCards++;
                     }
                 }
@@ -685,7 +729,7 @@
         }
         
         function getCardOrder(value) {
-            const order = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '9': 6, 'J': 7, 'Q': 8, 'K': 9, 'A': 10 };
+            const order = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 0, '9': 6, '10': 0, 'J': 7, 'Q': 8, 'K': 9, 'A': 10, '2': 0, 'Joker': 0 };
             return order[value] || 0;
         }
         
@@ -710,20 +754,31 @@
             const isMyTurn = playerIds[gameData.currentPlayer] === myPlayerId;
             const myPlayer = gameData.players[myPlayerId];
             
-            document.getElementById('drawCardBtn').style.display = 'none'; // No se usa en Tercias
-            document.getElementById('endTurnBtn').textContent = isMyTurn ? 'No puedo jugar (Comer cartas)' : 'Esperar turno';
-            document.getElementById('endTurnBtn').disabled = !isMyTurn;
-            
-            // Botón para jugar cartas seleccionadas
-            let playBtn = document.getElementById('playSelectedBtn');
-            if (!playBtn) {
-                playBtn = document.createElement('button');
-                playBtn.id = 'playSelectedBtn';
-                playBtn.textContent = 'Jugar Cartas Seleccionadas';
-                playBtn.onclick = () => playSelectedCards();
-                document.querySelector('.controls').appendChild(playBtn);
+            if (gameData.gamePhase === 'setup') {
+                // Fase de preparación - ocultar controles de juego
+                document.getElementById('endTurnBtn').style.display = 'none';
+                document.getElementById('gameInstructions').innerHTML = '📝 <strong>Fase de preparación:</strong> Intercambia cartas entre tu mano y las boca arriba. Confirma cuando estés listo.';
+                
+                let playBtn = document.getElementById('playSelectedBtn');
+                if (playBtn) playBtn.style.display = 'none';
+            } else {
+                // Juego normal
+                document.getElementById('endTurnBtn').style.display = 'block';
+                document.getElementById('endTurnBtn').textContent = isMyTurn ? 'No puedo jugar (Comer cartas)' : 'Esperar turno';
+                document.getElementById('endTurnBtn').disabled = !isMyTurn;
+                document.getElementById('gameInstructions').innerHTML = 'Haz clic en las cartas para seleccionarlas. Puedes seleccionar múltiples cartas del mismo valor.';
+                
+                // Botón para jugar cartas seleccionadas
+                let playBtn = document.getElementById('playSelectedBtn');
+                if (!playBtn) {
+                    playBtn = document.createElement('button');
+                    playBtn.id = 'playSelectedBtn';
+                    playBtn.textContent = 'Jugar Cartas Seleccionadas';
+                    playBtn.onclick = () => playSelectedCards();
+                    document.querySelector('.controls').appendChild(playBtn);
+                }
+                playBtn.style.display = isMyTurn && selectedCards.length > 0 ? 'block' : 'none';
             }
-            playBtn.style.display = isMyTurn && selectedCards.length > 0 ? 'block' : 'none';
         }
         
         function applyCardEffect(card) {
@@ -749,6 +804,10 @@
         
         function showWildcardExplanation(card) {
             if (!['2', '8', '10', 'Joker'].includes(card.value)) return;
+            
+            // Solo mostrar para el jugador que jugó la carta
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
             const modal = document.getElementById('wildcardModal');
             const title = document.getElementById('wildcardTitle');
@@ -889,6 +948,61 @@
             if (['2', '8', '10', 'Joker'].includes(card.value)) return true;
             return getCardOrder(card.value) >= getCardOrder(topCard.value);
         }
+        
+        let swapSelection = null;
+        
+        window.swapCard = function(source, index) {
+            if (gameData.gamePhase !== 'setup') return;
+            
+            const myPlayer = gameData.players[myPlayerId];
+            
+            if (!swapSelection) {
+                // Primera selección
+                swapSelection = { source, index };
+                renderPlayerArea(myPlayer); // Re-renderizar para mostrar selección
+            } else {
+                // Segunda selección - hacer intercambio
+                const card1 = swapSelection.source === 'hand' ? myPlayer.hand[swapSelection.index] : myPlayer.faceUp[swapSelection.index];
+                const card2 = source === 'hand' ? myPlayer.hand[index] : myPlayer.faceUp[index];
+                
+                // Intercambiar cartas
+                if (swapSelection.source === 'hand') {
+                    myPlayer.hand[swapSelection.index] = card2;
+                } else {
+                    myPlayer.faceUp[swapSelection.index] = card2;
+                }
+                
+                if (source === 'hand') {
+                    myPlayer.hand[index] = card1;
+                } else {
+                    myPlayer.faceUp[index] = card1;
+                }
+                
+                // Actualizar en base de datos
+                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+                
+                swapSelection = null;
+            }
+        };
+        
+        window.confirmSetup = function() {
+            const isReady = gameData.setupComplete?.[myPlayerId];
+            const updates = {};
+            updates[`games/${gameRoom}/setupComplete/${myPlayerId}`] = !isReady;
+            
+            // Verificar si todos están listos
+            const playerIds = Object.keys(gameData.players);
+            const allReady = playerIds.every(id => gameData.setupComplete?.[id] || id === myPlayerId);
+            
+            if (allReady && !isReady) {
+                // Iniciar el juego
+                updates[`games/${gameRoom}/gamePhase`] = 'playing';
+            }
+            
+            Object.keys(updates).forEach(path => {
+                set(ref(database, path), updates[path]);
+            });
+        };
         
         // Event listeners
         document.getElementById('startGameBtn').onclick = startGame;
