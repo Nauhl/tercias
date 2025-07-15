@@ -120,6 +120,25 @@
             padding: 15px;
             margin: 15px 0;
         }
+        .card-area {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.05);
+        }
+        .card-area h4 {
+            margin: 0 0 10px 0;
+            color: #22c55e;
+            font-size: 14px;
+        }
+        .setup-instruction {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -511,39 +530,52 @@
                     ${isReady ? '❌ Cambiar cartas' : '✓ Confirmar preparación'}
                 </button>`;
             } else {
-                // Juego normal
-                // Cartas boca abajo
-                html += '<div><h4>Cartas boca abajo:</h4><div style="display: flex; gap: 5px;">';
-                for (let i = 0; i < (player.faceDown?.length || 0); i++) {
-                    const canUseFaceDown = (player.hand?.length || 0) === 0 && (player.faceUp?.length || 0) === 0;
-                    html += `<div class="card card-back ${canUseFaceDown ? 'playable' : ''}" 
-                             ${canUseFaceDown ? `onclick="playFaceDownCard(${i})"` : ''}>?</div>`;
+                // Juego normal - mostrar solo las cartas que se pueden usar
+                const handCount = player.hand?.length || 0;
+                const faceUpCount = player.faceUp?.length || 0;
+                const faceDownCount = player.faceDown?.length || 0;
+                
+                // Solo mostrar cartas en mano si las hay
+                if (handCount > 0) {
+                    html += `<div><h4>Tu mano (${handCount} cartas) - Usa estas primero:</h4><div style="display: flex; gap: 5px;">`;
+                    (player.hand || []).forEach((card, index) => {
+                        const isSelected = selectedCards.includes(index);
+                        const canPlay = canPlayCard(card);
+                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'} ${isSelected ? 'selected' : ''}" 
+                                 ${canPlay ? `onclick="selectCard('hand', ${index})"` : ''}>
+                            ${card.value}${card.suit}
+                        </div>`;
+                    });
+                    html += '</div></div>';
                 }
-                html += '</div></div>';
+                // Solo mostrar cartas boca arriba si no hay cartas en mano
+                else if (faceUpCount > 0) {
+                    html += `<div><h4>Cartas boca arriba (${faceUpCount}) - Ahora puedes usarlas:</h4><div style="display: flex; gap: 5px;">`;
+                    (player.faceUp || []).forEach((card, index) => {
+                        const canPlay = canPlayCard(card);
+                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'}" 
+                                 ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
+                            ${card.value}${card.suit}
+                        </div>`;
+                    });
+                    html += '</div></div>';
+                }
+                // Solo mostrar cartas boca abajo si no hay otras cartas
+                else if (faceDownCount > 0) {
+                    html += `<div><h4>Cartas boca abajo (${faceDownCount}) - ¡Última oportunidad!:</h4><div style="display: flex; gap: 5px;">`;
+                    for (let i = 0; i < faceDownCount; i++) {
+                        html += `<div class="card card-back playable" onclick="playFaceDownCard(${i})">?</div>`;
+                    }
+                    html += '</div></div>';
+                }
+                else {
+                    html += '<div><h4>¡Sin cartas! 🎉</h4></div>';
+                }
                 
-                // Cartas boca arriba (visibles para todos)
-                html += '<div><h4>Cartas boca arriba:</h4><div style="display: flex; gap: 5px;">';
-                (player.faceUp || []).forEach((card, index) => {
-                    const canUse = (player.hand?.length || 0) === 0;
-                    const canPlay = canUse && canPlayCard(card);
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : (canUse ? 'disabled' : 'disabled')}" 
-                             ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
-                        ${card.value}${card.suit}
-                    </div>`;
-                });
-                html += '</div></div>';
-                
-                // Cartas en mano con selección múltiple
-                html += `<div><h4>Tu mano (${(player.hand || []).length} cartas):</h4><div style="display: flex; gap: 5px;">`;
-                (player.hand || []).forEach((card, index) => {
-                    const isSelected = selectedCards.includes(index);
-                    const canPlay = canPlayCard(card);
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'} ${isSelected ? 'selected' : ''}" 
-                             ${canPlay ? `onclick="selectCard('hand', ${index})"` : ''}>
-                        ${card.value}${card.suit}
-                    </div>`;
-                });
-                html += '</div></div>';
+                // Mostrar información de cartas no disponibles (solo como referencia)
+                if (handCount > 0 && (faceUpCount > 0 || faceDownCount > 0)) {
+                    html += `<div style="opacity: 0.5; margin-top: 15px;"><small>Tienes ${faceUpCount} cartas boca arriba y ${faceDownCount} boca abajo para después</small></div>`;
+                }
             }
             
             html += '</div>';
