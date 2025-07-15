@@ -422,7 +422,7 @@
                 // Encontrar la carta más baja en la mano para determinar quién empieza
                 hand.forEach(card => {
                     const order = getCardOrder(card.value);
-                    if (order < lowestCard.order) {
+                    if (order > 0 && order < lowestCard.order) {
                         lowestCard = { value: card.value, playerId: playerId, order: order };
                     }
                 });
@@ -431,8 +431,6 @@
                 updates[`games/${gameRoom}/players/${playerId}/faceUp`] = faceUp;
                 updates[`games/${gameRoom}/players/${playerId}/hand`] = hand;
                 updates[`games/${gameRoom}/players/${playerId}/totalCards`] = 9;
-                updates[`games/${gameRoom}/players/${playerId}/canDrawCards`] = true;
-
             });
             
             // Determinar jugador inicial
@@ -655,17 +653,8 @@
                 return;
             }
             
-            // Robar cartas para mantener 3 en mano (solo si hay mazo y menos de 3 cartas)
-            if (source === 'hand' && gameData.deck?.length > 0 && myPlayer.hand.length < 3) {
-                const cardsToDraw = Math.min(3 - myPlayer.hand.length, gameData.deck.length);
-                for (let i = 0; i < cardsToDraw; i++) {
-                    if (gameData.deck.length > 0) {
-                        const drawnCard = gameData.deck.pop();
-                        myPlayer.hand.push(drawnCard);
-                    }
-                }
-                set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
-            }
+            // NO robar cartas automáticamente - solo mantener las 3 iniciales
+            // En Tercias no se roba del mazo, solo se usan las 9 cartas iniciales
             
             set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
             selectedCards = [];
