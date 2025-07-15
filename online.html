@@ -504,18 +504,18 @@
                 html += '<p><strong>📝 Fase de preparación:</strong> Haz clic en las cartas para intercambiar entre tu mano y las cartas boca arriba.</p>';
                 html += '</div>';
                 
-                // Cartas boca arriba (intercambiables)
+                // Cartas boca arriba (intercambiables) - SOLO 3
                 html += '<div><h4>Cartas boca arriba (haz clic para intercambiar):</h4><div style="display: flex; gap: 5px;">';
-                (player.faceUp || []).forEach((card, index) => {
+                (player.faceUp || []).slice(0, 3).forEach((card, index) => {
                     html += `<div class="card card-front ${card.color} playable" onclick="swapCard('faceUp', ${index})">
                         ${card.value}${card.suit}
                     </div>`;
                 });
                 html += '</div></div>';
                 
-                // Cartas en mano (intercambiables)
+                // Cartas en mano (intercambiables) - SOLO 3
                 html += `<div><h4>Tu mano (haz clic para intercambiar):</h4><div style="display: flex; gap: 5px;">`;
-                (player.hand || []).forEach((card, index) => {
+                (player.hand || []).slice(0, 3).forEach((card, index) => {
                     html += `<div class="card card-front ${card.color} playable" onclick="swapCard('hand', ${index})">
                         ${card.value}${card.suit}
                     </div>`;
@@ -533,10 +533,10 @@
                 const faceUpCount = player.faceUp?.length || 0;
                 const faceDownCount = player.faceDown?.length || 0;
                 
-                // Solo mostrar cartas en mano si las hay
+                // Solo mostrar cartas en mano si las hay - SOLO 3
                 if (handCount > 0) {
                     html += `<div><h4>Tu mano (${handCount} cartas) - Usa estas primero:</h4><div style="display: flex; gap: 5px;">`;
-                    (player.hand || []).forEach((card, index) => {
+                    (player.hand || []).slice(0, 3).forEach((card, index) => {
                         const isSelected = selectedCards.includes(index);
                         const canPlay = canPlayCard(card);
                         html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'} ${isSelected ? 'selected' : ''}" 
@@ -546,10 +546,10 @@
                     });
                     html += '</div></div>';
                 }
-                // Solo mostrar cartas boca arriba si no hay cartas en mano
+                // Solo mostrar cartas boca arriba si no hay cartas en mano - SOLO 3
                 else if (faceUpCount > 0) {
                     html += `<div><h4>Cartas boca arriba (${faceUpCount}) - Ahora puedes usarlas:</h4><div style="display: flex; gap: 5px;">`;
-                    (player.faceUp || []).forEach((card, index) => {
+                    (player.faceUp || []).slice(0, 3).forEach((card, index) => {
                         const canPlay = canPlayCard(card);
                         html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'}" 
                                  ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
