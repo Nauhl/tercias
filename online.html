@@ -144,15 +144,16 @@
         <div class="rules-summary">
             <h4>🎯 Reglas rápidas de Tercias:</h4>
             <ul>
-                <li>🎯 Empieza quien tenga la carta más baja (3)</li>
+                <li>🎯 3 cartas boca abajo, 3 boca arriba, 3 en mano</li>
                 <li>🃏 Juega carta igual o mayor valor</li>
-                <li>🔄 Siempre mantienes 3 cartas en mano</li>
+                <li>🔄 Mantienes 3 cartas en mano (si hay mazo)</li>
                 <li>🍽️ Si no puedes jugar, "comes" todas las cartas del centro</li>
                 <li>🔢 Puedes jugar múltiples cartas del mismo valor</li>
-                <li>🏆 Gana el primero en quedarse sin cartas</li>
+                <li>🏆 Gana eliminando todas tus cartas: mano → boca arriba → boca abajo</li>
             </ul>
             <div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-top: 10px;">
-                <strong>🃏 Comodines:</strong> 2=Paso, 8=Reversa, 10=Barre, Joker=Comodín
+                <strong>🃏 Comodines:</strong> 2=Paso, 8=Reversa, 10=Barre, Joker=Comodín<br>
+                <strong>📊 Orden:</strong> 3, 4, 5, 6, 7, 9, J, Q, K, As (más alto)
             </div>
         </div>
         
@@ -230,19 +231,20 @@
                 <h3>🎯 Objetivo:</h3>
                 <p>Eliminar todas tus cartas para ganar.</p>
                 
-                <h3>🎮 Inicio del juego:</h3>
+                <h3>🎮 Configuración inicial:</h3>
                 <ul>
-                    <li>Cada jugador acomoda sus 3 cartas boca arriba</li>
-                    <li>El jugador con la carta más baja (3 o menor disponible) empieza</li>
-                    <li>Siempre mantienes 3 cartas en tu mano</li>
+                    <li>Cada jugador recibe 9 cartas: 3 boca abajo, 3 boca arriba, 3 en mano</li>
+                    <li>Puedes intercambiar cartas entre tu mano y las boca arriba antes de empezar</li>
+                    <li>El jugador con la carta más baja (3) en su mano empieza</li>
                 </ul>
                 
-                <h3>🎯 Reglas básicas:</h3>
+                <h3>🎯 Reglas de juego:</h3>
                 <ul>
                     <li>Juega carta igual o mayor valor que la del centro</li>
-                    <li>Después de jugar, roba una carta para mantener 3 en mano</li>
+                    <li>Mantienes 3 cartas en mano mientras haya mazo</li>
                     <li>Si no puedes jugar, "comes" todas las cartas del centro</li>
-                    <li>Puedes jugar múltiples cartas del mismo valor a la vez</li>
+                    <li>Puedes jugar múltiples cartas del mismo valor</li>
+                    <li>Secuencia: usa mano → cartas boca arriba → cartas boca abajo</li>
                 </ul>
                 
                 <h3>🃏 Cartas Especiales:</h3>
@@ -253,14 +255,16 @@
                     <li><strong>Joker:</strong> Comodín - tú decides su valor</li>
                 </ul>
                 
-                <h3>📊 Orden: 3, 4, 5, 6, 7, 9, J, Q, K, As</h3>
+                <h3>📊 Orden de cartas:</h3>
+                <p><strong>De menor a mayor:</strong> 3, 4, 5, 6, 7, 9, J, Q, K, As</p>
+                <p><strong>Comodines:</strong> 2, 8, 10, Joker (se pueden jugar sobre cualquier carta)</p>
                 
-                <h3>🏁 Secuencia para ganar:</h3>
+                <h3>🏁 Cómo ganar:</h3>
                 <ol>
-                    <li>Usa todas las cartas de tu mano</li>
-                    <li>Usa las 3 cartas boca arriba</li>
-                    <li>Usa las 3 cartas boca abajo (sin verlas)</li>
-                    <li>¡Ganas si juegas todas sin "comer"!</li>
+                    <li>Elimina todas las cartas de tu mano</li>
+                    <li>Luego usa las 3 cartas boca arriba</li>
+                    <li>Finalmente usa las 3 cartas boca abajo (sin verlas antes)</li>
+                    <li>¡Ganas al jugar tu última carta sin tener que "comer"!</li>
                 </ol>
             </div>
         </div>
@@ -409,6 +413,7 @@
                 updates[`games/${gameRoom}/players/${playerId}/hand`] = hand;
                 updates[`games/${gameRoom}/players/${playerId}/totalCards`] = 9;
                 updates[`games/${gameRoom}/players/${playerId}/canDrawCards`] = true;
+
             });
             
             // Determinar jugador inicial
@@ -519,8 +524,9 @@
                 // Cartas boca arriba (visibles para todos)
                 html += '<div><h4>Cartas boca arriba:</h4><div style="display: flex; gap: 5px;">';
                 (player.faceUp || []).forEach((card, index) => {
-                    const canPlay = (player.hand?.length || 0) === 0 && canPlayCard(card);
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : 'disabled'}" 
+                    const canUse = (player.hand?.length || 0) === 0;
+                    const canPlay = canUse && canPlayCard(card);
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : (canUse ? 'disabled' : 'disabled')}" 
                              ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
                         ${card.value}${card.suit}
                     </div>`;
@@ -528,7 +534,7 @@
                 html += '</div></div>';
                 
                 // Cartas en mano con selección múltiple
-                html += `<div><h4>Tu mano (${(player.hand || []).length}/3):</h4><div style="display: flex; gap: 5px;">`;
+                html += `<div><h4>Tu mano (${(player.hand || []).length} cartas):</h4><div style="display: flex; gap: 5px;">`;
                 (player.hand || []).forEach((card, index) => {
                     const isSelected = selectedCards.includes(index);
                     const canPlay = canPlayCard(card);
@@ -617,14 +623,13 @@
                 return;
             }
             
-            // Robar cartas para mantener 3 en mano (si es posible y necesario)
-            if (source === 'hand' && myPlayer.canDrawCards && gameData.deck?.length > 0) {
-                const cardsToDraw = Math.min(cardsToPlay.length, gameData.deck.length, 3 - myPlayer.hand.length);
+            // Robar cartas para mantener 3 en mano (solo si hay mazo y menos de 3 cartas)
+            if (source === 'hand' && gameData.deck?.length > 0 && myPlayer.hand.length < 3) {
+                const cardsToDraw = Math.min(3 - myPlayer.hand.length, gameData.deck.length);
                 for (let i = 0; i < cardsToDraw; i++) {
                     if (gameData.deck.length > 0) {
                         const drawnCard = gameData.deck.pop();
                         myPlayer.hand.push(drawnCard);
-                        myPlayer.totalCards++;
                     }
                 }
                 set(ref(database, `games/${gameRoom}/deck`), gameData.deck);
@@ -656,13 +661,25 @@
             
             // Si no puedes jugar ninguna carta, debes comer
             const myPlayer = gameData.players[myPlayerId];
-            const hasPlayableCard = (myPlayer.hand || []).some(card => canPlayCard(card)) ||
-                                   ((myPlayer.hand?.length || 0) === 0 && (myPlayer.faceUp || []).some(card => canPlayCard(card)));
+            let hasPlayableCard = false;
+            
+            // Verificar cartas en mano
+            if ((myPlayer.hand?.length || 0) > 0) {
+                hasPlayableCard = (myPlayer.hand || []).some(card => canPlayCard(card));
+            }
+            // Verificar cartas boca arriba si no hay cartas en mano
+            else if ((myPlayer.faceUp?.length || 0) > 0) {
+                hasPlayableCard = (myPlayer.faceUp || []).some(card => canPlayCard(card));
+            }
+            // Las cartas boca abajo siempre se pueden intentar jugar
+            else if ((myPlayer.faceDown?.length || 0) > 0) {
+                hasPlayableCard = true;
+            }
             
             if (!hasPlayableCard) {
                 eatCards();
             } else {
-                nextTurn();
+                alert('Tienes cartas que puedes jugar. Selecciona una carta válida.');
             }
         };
         
@@ -677,10 +694,9 @@
                 // Agregar todas las cartas del centro a la mano
                 myPlayer.hand = myPlayer.hand || [];
                 myPlayer.hand.push(...playPile);
-                myPlayer.totalCards += playPile.length;
-                
-                // El jugador deja de robar cartas hasta tener 3 o menos
-                myPlayer.canDrawCards = myPlayer.hand.length <= 3;
+                myPlayer.totalCards = (myPlayer.faceDown?.length || 0) + 
+                                     (myPlayer.faceUp?.length || 0) + 
+                                     myPlayer.hand.length;
                 
                 // Limpiar pila de juego
                 set(ref(database, `games/${gameRoom}/playPile`), []);
@@ -702,7 +718,7 @@
         
         function createDeck() {
             const suits = ['♠', '♥', '♦', '♣'];
-            const values = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+            const values = ['3', '4', '5', '6', '7', '9', 'J', 'Q', 'K', 'A', '2', '8', '10'];
             const deck = [];
             
             for (let suit of suits) {
@@ -729,7 +745,7 @@
         }
         
         function getCardOrder(value) {
-            const order = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '8': 0, '9': 6, '10': 0, 'J': 7, 'Q': 8, 'K': 9, 'A': 10, '2': 0, 'Joker': 0 };
+            const order = { '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, '9': 6, 'J': 7, 'Q': 8, 'K': 9, 'A': 10, '2': 0, '8': 0, '10': 0, 'Joker': 0 };
             return order[value] || 0;
         }
         
@@ -746,7 +762,13 @@
             if (['2', '8', '10', 'Joker'].includes(card.value)) return true;
             
             // Carta normal debe ser igual o mayor que la carta superior
-            return getCardOrder(card.value) >= getCardOrder(topCard.value);
+            const cardOrder = getCardOrder(card.value);
+            const topOrder = getCardOrder(topCard.value);
+            
+            // Si la carta superior es especial, cualquier carta se puede jugar
+            if (topOrder === 0) return true;
+            
+            return cardOrder >= topOrder;
         }
         
         function updateControls() {
@@ -766,7 +788,22 @@
                 document.getElementById('endTurnBtn').style.display = 'block';
                 document.getElementById('endTurnBtn').textContent = isMyTurn ? 'No puedo jugar (Comer cartas)' : 'Esperar turno';
                 document.getElementById('endTurnBtn').disabled = !isMyTurn;
-                document.getElementById('gameInstructions').innerHTML = 'Haz clic en las cartas para seleccionarlas. Puedes seleccionar múltiples cartas del mismo valor.';
+                
+                // Cambiar color del botón según el estado
+                document.getElementById('endTurnBtn').style.background = isMyTurn ? '#dc2626' : '#6b7280';
+                document.getElementById('endTurnBtn').style.cursor = isMyTurn ? 'pointer' : 'not-allowed';
+                const myPlayer = gameData.players[myPlayerId];
+                let instruction = 'Haz clic en las cartas para seleccionarlas. ';
+                
+                if ((myPlayer?.hand?.length || 0) > 0) {
+                    instruction += 'Usando cartas de tu mano.';
+                } else if ((myPlayer?.faceUp?.length || 0) > 0) {
+                    instruction += 'Usando cartas boca arriba.';
+                } else if ((myPlayer?.faceDown?.length || 0) > 0) {
+                    instruction += 'Usando cartas boca abajo (¡cuidado, no las ves!).';
+                }
+                
+                document.getElementById('gameInstructions').innerHTML = instruction;
                 
                 // Botón para jugar cartas seleccionadas
                 let playBtn = document.getElementById('playSelectedBtn');
