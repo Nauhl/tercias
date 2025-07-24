@@ -46,6 +46,46 @@
             transform: translateY(-10px);
             box-shadow: 0 6px 12px rgba(251, 191, 36, 0.5);
         }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
+        .exit-btn {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -69,10 +109,20 @@
         <div id="playersList"></div>
         <p>Jugadores conectados: <span id="playerCount">0</span></p>
         <button id="startGameBtn" style="display: none; margin-top: 15px; padding: 10px 20px; font-size: 16px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer;">🎮 Iniciar Juego</button>
+        <button id="rulesBtn" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin: 5px;">📋 Reglas</button>
+        <button id="exitRoomBtn" class="exit-btn">🚪 Salir</button>
     </div>
     
     <!-- Juego principal -->
     <div id="gameScreen" class="container" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>🃏 Tercias Online</h1>
+            <div>
+                <button id="gameRulesBtn" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin: 5px;">📋 Reglas</button>
+                <button id="exitGameBtn" class="exit-btn">🚪 Salir</button>
+            </div>
+        </div>
+        
         <div class="scoreboard">
             <h3>🏆 Jugadores</h3>
             <div class="players-scores" id="playersScores"></div>
@@ -87,6 +137,52 @@
         
         <div class="controls">
             <button id="endTurnBtn">No puedo jugar (Comer cartas)</button>
+        </div>
+    </div>
+    
+    <!-- Modal de reglas -->
+    <div id="rulesModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>📋 Cómo Jugar Tercias</h2>
+            <div class="rules">
+                <h3>🎯 Objetivo:</h3>
+                <p>Eliminar todas tus cartas para ganar.</p>
+                
+                <h3>🎮 Configuración inicial:</h3>
+                <ul>
+                    <li>Cada jugador recibe 9 cartas: 3 boca abajo, 3 boca arriba, 3 en mano</li>
+                    <li>El jugador con la carta más baja (3) en su mano empieza</li>
+                </ul>
+                
+                <h3>🎯 Reglas de juego:</h3>
+                <ul>
+                    <li>Juega carta igual o mayor valor que la del centro</li>
+                    <li>Si no puedes jugar, "comes" todas las cartas del centro</li>
+                    <li>Puedes jugar múltiples cartas del mismo valor</li>
+                    <li>Secuencia: usa mano → cartas boca arriba → cartas boca abajo</li>
+                </ul>
+                
+                <h3>🃏 Cartas Especiales:</h3>
+                <ul>
+                    <li><strong>2:</strong> Paso - el siguiente jugador pierde turno</li>
+                    <li><strong>8:</strong> Reversa - cambia dirección del juego</li>
+                    <li><strong>10:</strong> Barre - elimina todas las cartas del centro</li>
+                    <li><strong>Joker:</strong> Comodín - se puede jugar sobre cualquier carta</li>
+                </ul>
+                
+                <h3>📊 Orden de cartas:</h3>
+                <p><strong>De menor a mayor:</strong> 3, 4, 5, 6, 7, 9, J, Q, K, As</p>
+                <p><strong>Comodines:</strong> 2, 8, 10, Joker (se pueden jugar sobre cualquier carta)</p>
+                
+                <h3>🏁 Cómo ganar:</h3>
+                <ol>
+                    <li>Elimina todas las cartas de tu mano</li>
+                    <li>Luego usa las 3 cartas boca arriba</li>
+                    <li>Finalmente usa las 3 cartas boca abajo (sin verlas antes)</li>
+                    <li>¡Ganas al jugar tu última carta!</li>
+                </ol>
+            </div>
         </div>
     </div>
     
@@ -467,9 +563,37 @@
             return deck;
         }
         
+        // Salir de la sala
+        window.exitRoom = function() {
+            if (myPlayerId && gameRoom) {
+                const playerRef = ref(database, `games/${gameRoom}/players/${myPlayerId}`);
+                remove(playerRef);
+            }
+            location.reload();
+        };
+        
         // Event listeners
         document.getElementById('startGameBtn').onclick = startGame;
         document.getElementById('endTurnBtn').onclick = endTurn;
+        document.getElementById('rulesBtn').onclick = () => {
+            document.getElementById('rulesModal').style.display = 'block';
+        };
+        document.getElementById('gameRulesBtn').onclick = () => {
+            document.getElementById('rulesModal').style.display = 'block';
+        };
+        document.getElementById('exitRoomBtn').onclick = exitRoom;
+        document.getElementById('exitGameBtn').onclick = exitRoom;
+        
+        document.querySelector('.close').onclick = () => {
+            document.getElementById('rulesModal').style.display = 'none';
+        };
+        
+        window.onclick = (event) => {
+            const modal = document.getElementById('rulesModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
         
         document.getElementById('playerName').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') document.getElementById('roomId').focus();
@@ -481,6 +605,13 @@
         
         document.getElementById('roomId').addEventListener('input', (e) => {
             e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+        });
+        
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('rulesModal').style.display = 'none';
+            }
         });
     </script>
 </body>
