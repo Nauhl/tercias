@@ -456,43 +456,18 @@
         }
         
         function updateGameUI() {
-            const players = Object.values(gameData.players || {});
-            const playerIds = Object.keys(gameData.players || {});
-            
-            if (gameData.gamePhase === 'setup') {
-                document.getElementById('currentPlayerName').textContent = 'Fase de preparación - Acomoda tus cartas';
-                document.getElementById('playersScores').innerHTML = players.map((p, i) => `
-                    <div class="player-score">
-                        <div>🏅 ${p.name}</div>
-                        <div>${gameData.setupComplete?.[playerIds[i]] ? '✓ Listo' : '⏳ Preparando'}</div>
-                    </div>
-                `).join('');
-            } else {
-                document.getElementById('playersScores').innerHTML = players.map((p, i) => `
-                    <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
-                        <div>🏅 ${p.name}</div>
-                        <div>${p.totalCards || 0} cartas</div>
-                    </div>
-                `).join('');
-                
-                if (players[gameData.currentPlayer]) {
-                    document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
-                }
-            }
-            
             const myPlayer = gameData.players[myPlayerId];
-            if (myPlayer) {
-                renderPlayerArea(myPlayer);
-            }
             
-            renderPlayArea();
+            // Mostrar solo "Hola mundo" para el jugador
+            document.getElementById('currentPlayerName').textContent = `Hola mundo, ${myPlayer.name}!`;
+            document.getElementById('playersScores').innerHTML = '<div style="text-align: center; font-size: 24px; padding: 50px;">🌍 Hola mundo! 🌍</div>';
+            document.getElementById('playerHand').innerHTML = '<div style="text-align: center; font-size: 20px; padding: 30px;">¡Bienvenido al juego!</div>';
+            document.getElementById('playArea').innerHTML = '<div style="text-align: center; font-size: 18px; padding: 20px;">Todo listo para empezar</div>';
+            document.getElementById('cardsLeft').textContent = '0';
             
-            if (gameData.deck) {
-                document.getElementById('cardsLeft').textContent = gameData.deck.length;
-            }
-            
-            // Mostrar controles apropiados
-            updateControls();
+            // Ocultar controles
+            document.getElementById('endTurnBtn').style.display = 'none';
+            document.getElementById('gameInstructions').innerHTML = 'Disfruta del juego simplificado';
         }
         
         function renderPlayerArea(player) {
