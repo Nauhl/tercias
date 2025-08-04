@@ -46,6 +46,39 @@
             transform: translateY(-10px);
             box-shadow: 0 6px 12px rgba(251, 191, 36, 0.5);
         }
+        .card-stack {
+            position: relative;
+            display: inline-block;
+            margin: 10px;
+        }
+        .card-stack .card {
+            position: absolute;
+            transition: all 0.3s ease;
+        }
+        .card-stack .card:nth-child(1) { transform: rotate(-2deg) translate(-2px, -2px); }
+        .card-stack .card:nth-child(2) { transform: rotate(1deg) translate(1px, 1px); }
+        .card-stack .card:nth-child(3) { transform: rotate(-1deg) translate(2px, -1px); }
+        .card-stack:hover .card { transform: rotate(0deg) translate(0px, 0px); }
+        .card[draggable="true"] {
+            cursor: grab;
+        }
+        .card[draggable="true"]:active {
+            cursor: grabbing;
+        }
+        .drop-zone {
+            min-height: 120px;
+            border: 2px dashed #22c55e;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            background: rgba(34, 197, 94, 0.1);
+        }
+        .drop-zone.drag-over {
+            background: rgba(34, 197, 94, 0.3);
+            border-color: #16a34a;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -345,8 +378,10 @@
             const playPile = gameData.playPile || [];
             let html = '<h3>Mesa de juego</h3>';
             
+            html += '<div class="drop-zone" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)">';
+            
             if (playPile.length === 0) {
-                html += '<div class="card card-back">Vacía</div>';
+                html += '<div style="color: #666; font-size: 18px;">Arrastra una carta aquí</div>';
             } else {
                 const topCard = playPile[playPile.length - 1];
                 html += `<div class="card card-front ${topCard.color}">
@@ -354,107 +389,124 @@
                 </div>`;
             }
             
+            html += '</div>';
             document.getElementById('playArea').innerHTML = html;
         }
         
         function renderPlayerArea(player) {
-            let html = '<div>';
+            let html = '<div style="display: flex; justify-content: space-around; align-items: center;">';
             
-            // Mostrar cartas en mano primero
-            if ((player.hand?.length || 0) > 0) {
-                html += '<h4>Tu mano:</h4><div style="display: flex; gap: 5px;">';
-                player.hand.forEach((card, index) => {
-                    const isSelected = selectedCards.includes(index);
-                    const canPlay = canPlayCard(card);
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${isSelected ? 'selected' : ''}" 
-                             ${canPlay ? `onclick="selectCard('hand', ${index})"` : ''}>
-                        ${card.value}${card.suit}
-                    </div>`;
+            // Cartas boca abajo (siempre visibles como stack)
+            if ((player.faceDown?.length || 0) > 0) {
+                html += '<div><h4>Boca abajo:</h4><div class="card-stack">';
+                player.faceDown.forEach((card, index) => {
+                    html += `<div class="card card-back" draggable="true" ondragstart="dragStart(event, 'faceDown', ${index})">?</div>`;
                 });
-                html += '</div>';
+                html += '</div></div>';
             }
-            // Si no hay cartas en mano, mostrar cartas boca arriba
-            else if ((player.faceUp?.length || 0) > 0) {
-                html += '<h4>Cartas boca arriba:</h4><div style="display: flex; gap: 5px;">';
+            
+            // Cartas boca arriba (siempre visibles como stack)
+            if ((player.faceUp?.length || 0) > 0) {
+                html += '<div><h4>Boca arriba:</h4><div class="card-stack">';
                 player.faceUp.forEach((card, index) => {
                     const canPlay = canPlayCard(card);
                     html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" 
-                             ${canPlay ? `onclick="selectCard('faceUp', ${index})"` : ''}>
+                             draggable="${canPlay}" ondragstart="dragStart(event, 'faceUp', ${index})">
                         ${card.value}${card.suit}
                     </div>`;
                 });
-                html += '</div>';
+                html += '</div></div>';
             }
-            // Si no hay cartas en mano ni boca arriba, mostrar cartas boca abajo
-            else if ((player.faceDown?.length || 0) > 0) {
-                html += '<h4>Cartas boca abajo:</h4><div style="display: flex; gap: 5px;">';
-                for (let i = 0; i < player.faceDown.length; i++) {
-                    html += `<div class="card card-back playable" onclick="playFaceDownCard(${i})">?</div>`;
-                }
-                html += '</div>';
+            
+            // Cartas en mano (solo si las hay)
+            if ((player.hand?.length || 0) > 0) {
+                html += '<div><h4>Tu mano:</h4><div style="display: flex; gap: 5px;">';
+                player.hand.forEach((card, index) => {
+                    const canPlay = canPlayCard(card);
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" 
+                             draggable="${canPlay}" ondragstart="dragStart(event, 'hand', ${index})">
+                        ${card.value}${card.suit}
+                    </div>`;
+                });
+                html += '</div></div>';
             }
             
             html += '</div>';
             document.getElementById('playerHand').innerHTML = html;
         }
         
-        window.selectCard = function(source, index) {
-            const playerIds = Object.keys(gameData.players);
-            if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            if (selectedCards.includes(index)) {
-                selectedCards = selectedCards.filter(i => i !== index);
-            } else {
-                selectedCards.push(index);
-            }
-            
-            renderPlayerArea(gameData.players[myPlayerId]);
-            
-            // Auto-jugar si hay cartas seleccionadas
-            if (selectedCards.length > 0) {
-                setTimeout(() => playSelectedCards(source), 500);
-            }
-        };
+        // Drag and Drop functions
+        let draggedCard = null;
         
-        function playSelectedCards(source) {
-            if (selectedCards.length === 0) return;
-            
-            const myPlayer = gameData.players[myPlayerId];
-            const cardArray = source === 'hand' ? myPlayer.hand : myPlayer.faceUp;
-            
-            selectedCards.sort((a, b) => b - a).forEach(index => {
-                if (cardArray[index]) {
-                    const card = cardArray.splice(index, 1)[0];
-                    const playPile = gameData.playPile || [];
-                    playPile.push(card);
-                    set(ref(database, `games/${gameRoom}/playPile`), playPile);
-                    
-                    applyCardEffect(card);
-                }
-            });
-            
-            myPlayer.totalCards = (myPlayer.faceDown?.length || 0) + 
-                                 (myPlayer.faceUp?.length || 0) + 
-                                 (myPlayer.hand?.length || 0);
-            
-            if (myPlayer.totalCards === 0) {
-                alert(`¡${myPlayer.name} ha ganado!`);
+        window.dragStart = function(event, source, index) {
+            const playerIds = Object.keys(gameData.players);
+            if (playerIds[gameData.currentPlayer] !== myPlayerId) {
+                event.preventDefault();
                 return;
             }
             
-            set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
-            selectedCards = [];
-            nextTurn();
-        }
+            draggedCard = { source, index };
+            event.dataTransfer.effectAllowed = 'move';
+        };
         
-        window.playFaceDownCard = function(index) {
+        window.allowDrop = function(event) {
+            event.preventDefault();
+        };
+        
+        window.dragEnter = function(event) {
+            event.target.closest('.drop-zone').classList.add('drag-over');
+        };
+        
+        window.dragLeave = function(event) {
+            if (!event.target.closest('.drop-zone').contains(event.relatedTarget)) {
+                event.target.closest('.drop-zone').classList.remove('drag-over');
+            }
+        };
+        
+        window.drop = function(event) {
+            event.preventDefault();
+            event.target.closest('.drop-zone').classList.remove('drag-over');
+            
+            if (!draggedCard) return;
+            
+            const { source, index } = draggedCard;
+            playCard(source, index);
+            draggedCard = null;
+        };
+        
+        function playCard(source, index) {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
             const myPlayer = gameData.players[myPlayerId];
-            const card = myPlayer.faceDown[index];
+            let cardArray;
             
-            myPlayer.faceDown.splice(index, 1);
+            switch(source) {
+                case 'hand':
+                    cardArray = myPlayer.hand;
+                    break;
+                case 'faceUp':
+                    cardArray = myPlayer.faceUp;
+                    break;
+                case 'faceDown':
+                    cardArray = myPlayer.faceDown;
+                    break;
+                default:
+                    return;
+            }
+            
+            if (!cardArray || !cardArray[index]) return;
+            
+            const card = cardArray[index];
+            
+            // Verificar si se puede jugar (excepto cartas boca abajo)
+            if (source !== 'faceDown' && !canPlayCard(card)) {
+                alert('No puedes jugar esta carta');
+                return;
+            }
+            
+            // Remover carta y agregarla a la pila
+            cardArray.splice(index, 1);
             const playPile = gameData.playPile || [];
             playPile.push(card);
             
@@ -472,7 +524,9 @@
             set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
             set(ref(database, `games/${gameRoom}/playPile`), playPile);
             nextTurn();
-        };
+        }
+        
+
         
         window.endTurn = function() {
             const playerIds = Object.keys(gameData.players);
