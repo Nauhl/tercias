@@ -49,9 +49,14 @@
         .card-stack {
             position: relative;
             display: inline-block;
-            margin: 10px;
-            width: 80px;
-            height: 120px;
+            margin: 5px;
+            width: 60px;
+            height: 90px;
+        }
+        .card {
+            width: 60px;
+            height: 90px;
+            font-size: 12px;
         }
         .card-stack .card {
             position: absolute;
@@ -158,15 +163,17 @@
             </div>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px; align-items: start;">
-            <!-- Columna izquierda: Jugadores -->
-            <div class="scoreboard">
-                <h3>🏆 Jugadores</h3>
-                <div class="players-scores" id="playersScores"></div>
-            </div>
+        <!-- Mesa de juego con jugadores alrededor -->
+        <div style="display: grid; grid-template-areas: 'top-left top-center top-right' 'left center right' 'bottom-left bottom-center bottom-right'; grid-template-columns: 1fr 2fr 1fr; grid-template-rows: auto 1fr auto; gap: 20px; min-height: 600px;">
             
-            <!-- Columna central: Mesa de juego -->
-            <div style="text-align: center;">
+            <!-- Jugador superior -->
+            <div style="grid-area: top-center;" id="player-top"></div>
+            
+            <!-- Jugador izquierdo -->
+            <div style="grid-area: left; display: flex; flex-direction: column; justify-content: center;" id="player-left"></div>
+            
+            <!-- Centro: Mesa de juego -->
+            <div style="grid-area: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
                 <div class="current-player">
                     <h3>Turno de: <span id="currentPlayerName">-</span></h3>
                 </div>
@@ -176,12 +183,12 @@
                 </div>
             </div>
             
-            <!-- Columna derecha: Espacio libre -->
-            <div></div>
+            <!-- Jugador derecho -->
+            <div style="grid-area: right; display: flex; flex-direction: column; justify-content: center;" id="player-right"></div>
+            
+            <!-- Jugador inferior (yo) -->
+            <div style="grid-area: bottom-center;" id="player-bottom"></div>
         </div>
-        
-        <!-- Área de cartas del jugador en la parte inferior -->
-        <div class="player-hand" id="playerHand" style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px;"></div>
     </div>
     
     <!-- Modal de reglas -->
@@ -362,14 +369,6 @@
             const players = Object.values(gameData.players);
             const playerIds = Object.keys(gameData.players);
             
-            // Mostrar jugadores
-            document.getElementById('playersScores').innerHTML = players.map((p, i) => `
-                <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
-                    <div>🏅 ${p.name}</div>
-                    <div>${p.totalCards || 0} cartas</div>
-                </div>
-            `).join('');
-            
             // Mostrar turno actual
             if (players[gameData.currentPlayer]) {
                 document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
@@ -378,11 +377,8 @@
             // Mostrar área de juego
             renderPlayArea();
             
-            // Mostrar cartas del jugador
-            const myPlayer = gameData.players[myPlayerId];
-            if (myPlayer) {
-                renderPlayerArea(myPlayer);
-            }
+            // Distribuir jugadores alrededor de la mesa
+            renderAllPlayers(players, playerIds);
         }
         
         function renderPlayArea() {
@@ -404,46 +400,86 @@
             document.getElementById('playArea').innerHTML = html;
         }
         
-        function renderPlayerArea(player) {
-            let html = '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 40px; flex-wrap: wrap;">';
+        function renderAllPlayers(players, playerIds) {
+            const myPlayerIndex = playerIds.indexOf(myPlayerId);
+            const positions = ['player-bottom', 'player-left', 'player-top', 'player-right'];
             
-            // Cartas boca abajo (siempre visibles como stack)
+            // Limpiar todas las posiciones
+            positions.forEach(pos => {
+                document.getElementById(pos).innerHTML = '';
+            });
+            
+            players.forEach((player, index) => {
+                const isMe = playerIds[index] === myPlayerId;
+                const isCurrentPlayer = index === gameData.currentPlayer;
+                
+                // Calcular posición relativa al jugador actual
+                let relativePosition = (index - myPlayerIndex + 4) % 4;
+                const positionId = positions[relativePosition];
+                
+                const html = renderPlayerCards(player, playerIds[index], isMe, isCurrentPlayer);
+                document.getElementById(positionId).innerHTML = html;
+            });
+        }
+        
+        function renderPlayerCards(player, playerId, isMe, isCurrentPlayer) {
+            const playerName = player.name + (isMe ? ' (Tú)' : '');
+            const activeClass = isCurrentPlayer ? 'style="background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 10px;"' : '';
+            
+            let html = `<div ${activeClass}>`;
+            html += `<h4 style="text-align: center; color: ${isCurrentPlayer ? '#22c55e' : '#fff'}; margin-bottom: 15px;">${playerName}</h4>`;
+            html += '<div style="display: flex; justify-content: center; gap: 20px; align-items: flex-start;">';
+            
+            // Cartas boca abajo (siempre como stack boca abajo)
             if ((player.faceDown?.length || 0) > 0) {
-                html += '<div style="text-align: center;"><h4 style="margin-bottom: 10px; color: #22c55e;">Boca abajo</h4><div class="card-stack">';
-                player.faceDown.forEach((card, index) => {
-                    html += `<div class="card card-back" draggable="true" ondragstart="dragStart(event, 'faceDown', ${index})">?</div>`;
-                });
+                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca abajo</small><div class="card-stack">';
+                for (let i = 0; i < player.faceDown.length; i++) {
+                    const draggable = isMe ? 'draggable="true" ondragstart="dragStart(event, \'faceDown\', ' + i + ')"' : '';
+                    html += `<div class="card card-back" ${draggable}>?</div>`;
+                }
                 html += '</div></div>';
             }
             
-            // Cartas boca arriba (siempre visibles como stack)
+            // Cartas boca arriba (visibles para todos)
             if ((player.faceUp?.length || 0) > 0) {
-                html += '<div style="text-align: center;"><h4 style="margin-bottom: 10px; color: #22c55e;">Boca arriba</h4><div class="card-stack">';
+                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca arriba</small><div class="card-stack">';
                 player.faceUp.forEach((card, index) => {
-                    const canPlay = canPlayCard(card);
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" 
-                             draggable="${canPlay}" ondragstart="dragStart(event, 'faceUp', ${index})">
+                    const canPlay = isMe && canPlayCard(card);
+                    const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'faceUp', ${index})"` : '';
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" ${draggable}>
                         ${card.value}${card.suit}
                     </div>`;
                 });
                 html += '</div></div>';
             }
             
-            // Cartas en mano (solo si las hay)
+            // Cartas en mano
             if ((player.hand?.length || 0) > 0) {
-                html += '<div style="text-align: center;"><h4 style="margin-bottom: 10px; color: #22c55e;">Tu mano</h4><div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">';
-                player.hand.forEach((card, index) => {
-                    const canPlay = canPlayCard(card);
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" 
-                             draggable="${canPlay}" ondragstart="dragStart(event, 'hand', ${index})">
-                        ${card.value}${card.suit}
-                    </div>`;
-                });
+                html += '<div style="text-align: center;"><small style="color: #ccc;">Mano</small><div style="display: flex; gap: 5px; justify-content: center; margin-top: 5px;">';
+                
+                if (isMe) {
+                    // Mostrar mis cartas
+                    player.hand.forEach((card, index) => {
+                        const canPlay = canPlayCard(card);
+                        const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'hand', ${index})"` : '';
+                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" ${draggable}>
+                            ${card.value}${card.suit}
+                        </div>`;
+                    });
+                } else {
+                    // Mostrar cartas boca abajo para otros jugadores
+                    for (let i = 0; i < player.hand.length; i++) {
+                        html += '<div class="card card-back" style="margin: 0 2px;">?</div>';
+                    }
+                }
                 html += '</div></div>';
             }
             
             html += '</div>';
-            document.getElementById('playerHand').innerHTML = html;
+            html += `<div style="text-align: center; margin-top: 10px; font-size: 12px; color: #ccc;">${player.totalCards || 0} cartas totales</div>`;
+            html += '</div>';
+            
+            return html;
         }
         
         // Drag and Drop functions
