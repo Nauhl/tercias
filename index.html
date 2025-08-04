@@ -46,26 +46,22 @@
             transform: translateY(-10px);
             box-shadow: 0 6px 12px rgba(251, 191, 36, 0.5);
         }
-        .card-stack {
-            position: relative;
-            display: inline-block;
+        .card-row {
+            display: flex;
+            gap: 3px;
+            justify-content: center;
             margin: 5px;
-            width: 60px;
-            height: 90px;
         }
         .card {
-            width: 60px;
-            height: 90px;
-            font-size: 12px;
+            width: 50px;
+            height: 75px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            border: 1px solid #333;
         }
-        .card-stack .card {
-            position: absolute;
-            transition: all 0.3s ease;
-        }
-        .card-stack .card:nth-child(1) { transform: rotate(-2deg) translate(-2px, -2px); }
-        .card-stack .card:nth-child(2) { transform: rotate(1deg) translate(1px, 1px); }
-        .card-stack .card:nth-child(3) { transform: rotate(-1deg) translate(2px, -1px); }
-        .card-stack:hover .card { transform: rotate(0deg) translate(0px, 0px); }
         .card[draggable="true"] {
             cursor: grab;
         }
@@ -430,9 +426,9 @@
             html += `<h4 style="text-align: center; color: ${isCurrentPlayer ? '#22c55e' : '#fff'}; margin-bottom: 15px;">${playerName}</h4>`;
             html += '<div style="display: flex; justify-content: center; gap: 20px; align-items: flex-start;">';
             
-            // Cartas boca abajo (siempre como stack boca abajo)
+            // Cartas boca abajo (siempre como fila boca abajo)
             if ((player.faceDown?.length || 0) > 0) {
-                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca abajo</small><div class="card-stack">';
+                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca abajo</small><div class="card-row">';
                 for (let i = 0; i < player.faceDown.length; i++) {
                     const draggable = isMe ? 'draggable="true" ondragstart="dragStart(event, \'faceDown\', ' + i + ')"' : '';
                     html += `<div class="card card-back" ${draggable}>?</div>`;
@@ -440,9 +436,9 @@
                 html += '</div></div>';
             }
             
-            // Cartas boca arriba (visibles para todos)
+            // Cartas boca arriba (visibles para todos en fila)
             if ((player.faceUp?.length || 0) > 0) {
-                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca arriba</small><div class="card-stack">';
+                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca arriba</small><div class="card-row">';
                 player.faceUp.forEach((card, index) => {
                     const canPlay = isMe && canPlayCard(card);
                     const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'faceUp', ${index})"` : '';
@@ -469,7 +465,7 @@
                 } else {
                     // Mostrar cartas boca abajo para otros jugadores
                     for (let i = 0; i < player.hand.length; i++) {
-                        html += '<div class="card card-back" style="margin: 0 2px;">?</div>';
+                        html += '<div class="card card-back">?</div>';
                     }
                 }
                 html += '</div></div>';
