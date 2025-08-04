@@ -120,6 +120,27 @@
             border-radius: 10px;
             color: white;
         }
+        /* Colores específicos para cada jugador */
+        .player-0-card {
+            border: 2px solid #3b82f6 !important;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3) !important;
+        }
+        
+        .player-1-card {
+            border: 2px solid #ef4444 !important;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.3) !important;
+        }
+        
+        .player-2-card {
+            border: 2px solid #22c55e !important;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.3) !important;
+        }
+        
+        .player-3-card {
+            border: 2px solid #f97316 !important;
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.3) !important;
+        }
+        
         @media (max-width: 768px) {
             .card {
                 width: 60px;
@@ -514,13 +535,17 @@
             
             const activePlayers = players.slice(0, 4);
             const isHost = Object.keys(gameData.players || {})[0] === myPlayerId;
+            const playerColors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316']; // Azul, Rojo, Verde, Naranja
+            const playerColorsBg = ['rgba(59, 130, 246, 0.2)', 'rgba(239, 68, 68, 0.2)', 'rgba(34, 197, 94, 0.2)', 'rgba(249, 115, 22, 0.2)'];
             
-            document.getElementById('playersList').innerHTML = activePlayers.map((p, i) => 
-                `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
-                    <span>${i + 1}. ${p.name} ${p.id === myPlayerId ? '(Tú)' : ''}</span>
+            document.getElementById('playersList').innerHTML = activePlayers.map((p, i) => {
+                const color = playerColors[i] || '#fff';
+                const bgColor = playerColorsBg[i] || 'rgba(255,255,255,0.1)';
+                return `<div style="padding: 10px; background: ${bgColor}; margin: 8px 0; border-radius: 8px; border: 2px solid ${color}; color: ${color}; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                    <span>👤 ${i + 1}. ${p.name} ${p.id === myPlayerId ? '(Tú)' : ''}</span>
                     ${isHost && p.id !== myPlayerId ? `<button onclick="kickPlayer('${p.id}')" style="background: #dc2626; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer;">❌</button>` : ''}
-                </div>`
-            ).join('');
+                </div>`;
+            }).join('');
             
             document.getElementById('playerCount').textContent = activePlayers.length;
             
@@ -566,16 +591,26 @@
         
         function updateGameUI() {
             const players = Object.values(gameData.players || {});
+            const playerColors = ['#60a5fa', '#f87171', '#4ade80', '#fb923c']; // Colores más claros para texto
+            const playerColorsBg = ['rgba(59, 130, 246, 0.2)', 'rgba(239, 68, 68, 0.2)', 'rgba(34, 197, 94, 0.2)', 'rgba(249, 115, 22, 0.2)'];
             
-            document.getElementById('playersScores').innerHTML = players.map((p, i) => `
-                <div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}">
+            document.getElementById('playersScores').innerHTML = players.map((p, i) => {
+                const color = playerColors[i] || '#fff';
+                const bgColor = playerColorsBg[i] || 'rgba(255,255,255,0.1)';
+                const borderColor = ['#3b82f6', '#ef4444', '#22c55e', '#f97316'][i] || '#fff';
+                return `<div class="player-score ${i === gameData.currentPlayer ? 'active' : ''}" style="background: ${bgColor}; border: 2px solid ${borderColor}; color: ${color};">
                     <div>🏅 ${p.name}</div>
                     <div>${p.score || 0} pts</div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
             
             if (players[gameData.currentPlayer]) {
-                document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
+                const currentPlayerElement = document.getElementById('currentPlayerName');
+                const currentPlayerColor = playerColors[gameData.currentPlayer] || '#22c55e';
+                
+                currentPlayerElement.textContent = players[gameData.currentPlayer].name;
+                currentPlayerElement.style.color = currentPlayerColor;
+                currentPlayerElement.style.textShadow = `0 0 10px ${currentPlayerColor}50`;
             }
             
             const myPlayer = gameData.players[myPlayerId];
@@ -600,9 +635,14 @@
                 return;
             }
             
+            // Obtener el índice del jugador actual para aplicar su color
+            const playerIds = Object.keys(gameData.players || {});
+            const myPlayerIndex = playerIds.indexOf(myPlayerId);
+            const playerCardClass = `player-${myPlayerIndex}-card`;
+            
             hand.forEach((card, index) => {
                 const cardElement = document.createElement('div');
-                cardElement.className = `card card-front ${card.color}`;
+                cardElement.className = `card card-front ${card.color} ${playerCardClass}`;
                 cardElement.textContent = `${card.value}${card.suit}`;
                 cardElement.style.margin = '5px';
                 cardElement.style.display = 'inline-block';

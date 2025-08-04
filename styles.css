@@ -84,6 +84,102 @@ header h1 {
     border: 2px solid #fbbf24;
 }
 
+/* Colores específicos para cada jugador */
+.player-0 {
+    background: rgba(59, 130, 246, 0.2) !important;
+    border: 2px solid #3b82f6 !important;
+    color: #dbeafe !important;
+}
+
+.player-1 {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border: 2px solid #ef4444 !important;
+    color: #fecaca !important;
+}
+
+.player-2 {
+    background: rgba(34, 197, 94, 0.2) !important;
+    border: 2px solid #22c55e !important;
+    color: #dcfce7 !important;
+}
+
+.player-3 {
+    background: rgba(249, 115, 22, 0.2) !important;
+    border: 2px solid #f97316 !important;
+    color: #fed7aa !important;
+}
+
+/* Cartas con colores de jugador */
+.card.player-0-card {
+    border: 2px solid #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+}
+
+.card.player-1-card {
+    border: 2px solid #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.card.player-2-card {
+    border: 2px solid #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+.card.player-3-card {
+    border: 2px solid #f97316;
+    box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
+}
+
+/* Áreas de jugador con colores */
+.player-area-0 {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.player-area-1 {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+    border: 2px solid rgba(239, 68, 68, 0.3);
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.player-area-2 {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
+    border: 2px solid rgba(34, 197, 94, 0.3);
+    border-radius: 15px;
+    padding: 15px;
+}
+
+.player-area-3 {
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.05));
+    border: 2px solid rgba(249, 115, 22, 0.3);
+    border-radius: 15px;
+    padding: 15px;
+}
+
+/* Nombres de jugadores con colores */
+.player-name-0 {
+    color: #60a5fa !important;
+    text-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.player-name-1 {
+    color: #f87171 !important;
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.player-name-2 {
+    color: #4ade80 !important;
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+.player-name-3 {
+    color: #fb923c !important;
+    text-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+}
+
 .current-player {
     text-align: center;
     margin-bottom: 15px;

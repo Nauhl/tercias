@@ -122,6 +122,25 @@
             margin: 5px;
             font-size: 14px;
         }
+        .joker-option {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        .joker-option:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        .card.transformed {
+            border: 2px solid #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -172,6 +191,7 @@
             <div style="grid-area: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
                 <div class="current-player">
                     <h3>Turno de: <span id="currentPlayerName">-</span></h3>
+                    <div id="directionIndicator" style="font-size: 24px; margin: 10px 0; transition: transform 0.5s ease;">🔄</div>
                 </div>
                 <div class="play-area" id="playArea"></div>
                 <div class="controls" style="margin-top: 20px;">
@@ -184,6 +204,29 @@
             
             <!-- Jugador inferior (yo) -->
             <div style="grid-area: bottom-center;" id="player-bottom"></div>
+        </div>
+    </div>
+    
+    <!-- Modal de Joker -->
+    <div id="jokerModal" class="modal">
+        <div class="modal-content" style="text-align: center;">
+            <h2>🃏 Elige el valor del Joker</h2>
+            <p>Selecciona qué carta quieres que represente el Joker:</p>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0;">
+                <button onclick="selectJokerValue('3')" class="joker-option">3</button>
+                <button onclick="selectJokerValue('4')" class="joker-option">4</button>
+                <button onclick="selectJokerValue('5')" class="joker-option">5</button>
+                <button onclick="selectJokerValue('6')" class="joker-option">6</button>
+                <button onclick="selectJokerValue('7')" class="joker-option">7</button>
+                <button onclick="selectJokerValue('9')" class="joker-option">9</button>
+                <button onclick="selectJokerValue('J')" class="joker-option">J</button>
+                <button onclick="selectJokerValue('Q')" class="joker-option">Q</button>
+                <button onclick="selectJokerValue('K')" class="joker-option">K</button>
+                <button onclick="selectJokerValue('A')" class="joker-option">A</button>
+                <button onclick="selectJokerValue('2')" class="joker-option" style="background: #f59e0b;">2 (Paso)</button>
+                <button onclick="selectJokerValue('8')" class="joker-option" style="background: #8b5cf6;">8 (Reversa)</button>
+                <button onclick="selectJokerValue('10')" class="joker-option" style="background: #ef4444;">10 (Barre)</button>
+            </div>
         </div>
     </div>
     
@@ -312,11 +355,17 @@
         
         function updateWaitingRoom(players) {
             document.getElementById('roomDisplay').textContent = gameRoom.replace('room_', '');
-            document.getElementById('playersList').innerHTML = players.map((p, i) => 
-                `<div style="padding: 5px; background: rgba(255,255,255,0.1); margin: 5px 0; border-radius: 5px;">
-                    ${i + 1}. ${p.name} ${Object.keys(gameData.players)[i] === myPlayerId ? '(Tú)' : ''}
-                </div>`
-            ).join('');
+            
+            const playerColors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316']; // Azul, Rojo, Verde, Naranja
+            const playerColorsBg = ['rgba(59, 130, 246, 0.2)', 'rgba(239, 68, 68, 0.2)', 'rgba(34, 197, 94, 0.2)', 'rgba(249, 115, 22, 0.2)'];
+            
+            document.getElementById('playersList').innerHTML = players.map((p, i) => {
+                const color = playerColors[i] || '#fff';
+                const bgColor = playerColorsBg[i] || 'rgba(255,255,255,0.1)';
+                return `<div style="padding: 10px; background: ${bgColor}; margin: 8px 0; border-radius: 8px; border: 2px solid ${color}; color: ${color}; font-weight: bold;">
+                    👤 ${i + 1}. ${p.name} ${Object.keys(gameData.players)[i] === myPlayerId ? '(Tú)' : ''}
+                </div>`;
+            }).join('');
             
             document.getElementById('playerCount').textContent = players.length;
             
@@ -349,7 +398,7 @@
             updates[`games/${gameRoom}/playPile`] = [];
             updates[`games/${gameRoom}/gameStarted`] = true;
             updates[`games/${gameRoom}/currentPlayer`] = 0;
-            updates[`games/${gameRoom}/direction`] = 1;
+            updates[`games/${gameRoom}/direction`] = 0; // 0 = horario (derecha), 1 = antihorario (izquierda)
             
             Object.keys(updates).forEach(path => {
                 set(ref(database, path), updates[path]);
@@ -365,10 +414,19 @@
             const players = Object.values(gameData.players);
             const playerIds = Object.keys(gameData.players);
             
-            // Mostrar turno actual
+            // Mostrar turno actual con color
             if (players[gameData.currentPlayer]) {
-                document.getElementById('currentPlayerName').textContent = players[gameData.currentPlayer].name;
+                const currentPlayerElement = document.getElementById('currentPlayerName');
+                const playerColors = ['#60a5fa', '#f87171', '#4ade80', '#fb923c']; // Colores más claros para texto
+                const currentPlayerColor = playerColors[gameData.currentPlayer] || '#22c55e';
+                
+                currentPlayerElement.textContent = players[gameData.currentPlayer].name;
+                currentPlayerElement.style.color = currentPlayerColor;
+                currentPlayerElement.style.textShadow = `0 0 10px ${currentPlayerColor}50`;
             }
+            
+            // Actualizar indicador de dirección
+            updateDirectionIndicator();
             
             // Mostrar área de juego
             renderPlayArea();
@@ -387,8 +445,12 @@
                 html += '<div style="color: #666; font-size: 18px;">Arrastra una carta aquí</div>';
             } else {
                 const topCard = playPile[playPile.length - 1];
-                html += `<div class="card card-front ${topCard.color}">
-                    ${topCard.value}${topCard.suit}
+                const displayValue = topCard.displayValue || topCard.value;
+                const isTransformed = topCard.value === '2' && topCard.displayValue;
+                
+                html += `<div class="card card-front ${topCard.color} ${isTransformed ? 'transformed' : ''}">
+                    ${displayValue}${topCard.suit}
+                    ${isTransformed ? '<div style="font-size: 8px; position: absolute; bottom: 2px; right: 2px; opacity: 0.7;">(2)</div>' : ''}
                 </div>`;
             }
             
@@ -398,20 +460,33 @@
         
         function renderAllPlayers(players, playerIds) {
             const myPlayerIndex = playerIds.indexOf(myPlayerId);
+            const totalPlayers = players.length;
+            
+            // Posiciones en sentido horario: abajo (yo), izquierda, arriba, derecha
             const positions = ['player-bottom', 'player-left', 'player-top', 'player-right'];
+            
+            // Mapeo de posiciones según número de jugadores (en sentido horario)
+            const positionMaps = {
+                2: [0, 2], // Yo abajo, otro arriba
+                3: [0, 2, 1], // Yo abajo, siguiente arriba, siguiente izquierda
+                4: [0, 1, 2, 3] // Yo abajo, izquierda, arriba, derecha
+            };
             
             // Limpiar todas las posiciones
             positions.forEach(pos => {
                 document.getElementById(pos).innerHTML = '';
             });
             
+            const positionMap = positionMaps[totalPlayers] || positionMaps[4];
+            
             players.forEach((player, index) => {
                 const isMe = playerIds[index] === myPlayerId;
                 const isCurrentPlayer = index === gameData.currentPlayer;
                 
-                // Calcular posición relativa al jugador actual
-                let relativePosition = (index - myPlayerIndex + 4) % 4;
-                const positionId = positions[relativePosition];
+                // Calcular posición relativa en sentido horario
+                let relativeIndex = (index - myPlayerIndex + totalPlayers) % totalPlayers;
+                let positionIndex = positionMap[relativeIndex];
+                const positionId = positions[positionIndex];
                 
                 const html = renderPlayerCards(player, playerIds[index], isMe, isCurrentPlayer);
                 document.getElementById(positionId).innerHTML = html;
@@ -419,11 +494,16 @@
         }
         
         function renderPlayerCards(player, playerId, isMe, isCurrentPlayer) {
+            const playerIds = Object.keys(gameData.players);
+            const playerIndex = playerIds.indexOf(playerId);
             const playerName = player.name + (isMe ? ' (Tú)' : '');
-            const activeClass = isCurrentPlayer ? 'style="background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 10px;"' : '';
             
-            let html = `<div ${activeClass}>`;
-            html += `<h4 style="text-align: center; color: ${isCurrentPlayer ? '#22c55e' : '#fff'}; margin-bottom: 15px;">${playerName}</h4>`;
+            const playerAreaClass = `player-area-${playerIndex}`;
+            const playerNameClass = `player-name-${playerIndex}`;
+            const activeGlow = isCurrentPlayer ? 'style="box-shadow: 0 0 20px rgba(255, 255, 255, 0.3); transform: scale(1.02);"' : '';
+            
+            let html = `<div class="${playerAreaClass}" ${activeGlow}>`;
+            html += `<h4 class="${playerNameClass}" style="text-align: center; margin-bottom: 15px; font-weight: bold;">${playerName}</h4>`;
             html += '<div style="display: flex; justify-content: center; gap: 20px; align-items: flex-start;">';
             
             // Cartas boca abajo (siempre como fila boca abajo)
@@ -431,7 +511,8 @@
                 html += '<div style="text-align: center;"><small style="color: #ccc;">Boca abajo</small><div class="card-row">';
                 for (let i = 0; i < player.faceDown.length; i++) {
                     const draggable = isMe ? 'draggable="true" ondragstart="dragStart(event, \'faceDown\', ' + i + ')"' : '';
-                    html += `<div class="card card-back" ${draggable}>?</div>`;
+                    const playerCardClass = `player-${playerIndex}-card`;
+                    html += `<div class="card card-back ${playerCardClass}" ${draggable}>?</div>`;
                 }
                 html += '</div></div>';
             }
@@ -442,7 +523,8 @@
                 player.faceUp.forEach((card, index) => {
                     const canPlay = isMe && canPlayCard(card);
                     const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'faceUp', ${index})"` : '';
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" ${draggable}>
+                    const playerCardClass = `player-${playerIndex}-card`;
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable}>
                         ${card.value}${card.suit}
                     </div>`;
                 });
@@ -458,14 +540,16 @@
                     player.hand.forEach((card, index) => {
                         const canPlay = canPlayCard(card);
                         const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'hand', ${index})"` : '';
-                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" ${draggable}>
+                        const playerCardClass = `player-${playerIndex}-card`;
+                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable}>
                             ${card.value}${card.suit}
                         </div>`;
                     });
                 } else {
                     // Mostrar cartas boca abajo para otros jugadores
                     for (let i = 0; i < player.hand.length; i++) {
-                        html += '<div class="card card-back">?</div>';
+                        const playerCardClass = `player-${playerIndex}-card`;
+                        html += `<div class="card card-back ${playerCardClass}">?</div>`;
                     }
                 }
                 html += '</div></div>';
@@ -551,6 +635,15 @@
             // Remover carta y agregarla a la pila
             cardArray.splice(index, 1);
             const playPile = gameData.playPile || [];
+            
+            // Si es un 2, mantener el valor de la carta anterior
+            if (card.value === '2' && playPile.length > 0) {
+                const previousCard = playPile[playPile.length - 1];
+                card.displayValue = previousCard.displayValue || previousCard.value;
+            } else {
+                card.displayValue = card.value;
+            }
+            
             playPile.push(card);
             
             applyCardEffect(card);
@@ -595,7 +688,17 @@
         
         function nextTurn() {
             const playerIds = Object.keys(gameData.players);
-            let nextPlayerIndex = (gameData.currentPlayer + gameData.direction + playerIds.length) % playerIds.length;
+            const totalPlayers = playerIds.length;
+            let nextPlayerIndex;
+            
+            if (gameData.direction === 0) {
+                // Horario (derecha): +1
+                nextPlayerIndex = (gameData.currentPlayer + 1) % totalPlayers;
+            } else {
+                // Antihorario (izquierda): -1
+                nextPlayerIndex = (gameData.currentPlayer - 1 + totalPlayers) % totalPlayers;
+            }
+            
             set(ref(database, `games/${gameRoom}/currentPlayer`), nextPlayerIndex);
         }
         
@@ -605,11 +708,15 @@
                     nextTurn(); // Saltar siguiente jugador
                     break;
                 case '8': // Reversa
-                    const newDirection = gameData.direction * -1;
+                    const newDirection = gameData.direction === 0 ? 1 : 0; // Cambiar entre 0 y 1
                     set(ref(database, `games/${gameRoom}/direction`), newDirection);
+                    showDirectionChange(newDirection);
                     break;
                 case '10': // Barre
                     set(ref(database, `games/${gameRoom}/playPile`), []);
+                    break;
+                case 'Joker': // Comodín
+                    showJokerSelection();
                     break;
             }
         }
@@ -619,12 +726,13 @@
             if (playPile.length === 0) return true;
             
             const topCard = playPile[playPile.length - 1];
+            const topCardValue = topCard.displayValue || topCard.value;
             
             // Cartas especiales siempre se pueden jugar
             if (['2', '8', '10', 'Joker'].includes(card.value)) return true;
             
-            // Carta normal debe ser igual o mayor
-            return getCardOrder(card.value) >= getCardOrder(topCard.value);
+            // Carta normal debe ser igual o mayor que el valor mostrado
+            return getCardOrder(card.value) >= getCardOrder(topCardValue);
         }
         
         function getCardOrder(value) {
@@ -668,6 +776,106 @@
             }
             location.reload();
         };
+        
+        function updateDirectionIndicator() {
+            const indicator = document.getElementById('directionIndicator');
+            if (indicator) {
+                if (gameData.direction === 0) {
+                    // Horario (derecha)
+                    indicator.innerHTML = '⟳'; // ⟳
+                    indicator.style.transform = 'rotate(0deg)';
+                    indicator.title = 'Sentido horario';
+                } else {
+                    // Antihorario (izquierda)
+                    indicator.innerHTML = '⟲'; // ⟲
+                    indicator.style.transform = 'rotate(180deg)';
+                    indicator.title = 'Sentido antihorario';
+                }
+            }
+        }
+        
+        function showDirectionChange(newDirection) {
+            const indicator = document.getElementById('directionIndicator');
+            if (indicator) {
+                // Animación de cambio
+                indicator.style.transform = 'scale(1.5) rotate(360deg)';
+                indicator.style.color = '#f59e0b';
+                
+                setTimeout(() => {
+                    updateDirectionIndicator();
+                    indicator.style.color = '#22c55e';
+                    
+                    setTimeout(() => {
+                        indicator.style.transform = newDirection === 0 ? 'rotate(0deg)' : 'rotate(180deg)';
+                    }, 100);
+                }, 500);
+                
+                // Mostrar mensaje
+                const message = document.createElement('div');
+                message.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(245, 158, 11, 0.9); color: white; padding: 15px 25px; border-radius: 10px; font-size: 18px; font-weight: bold; z-index: 1000; animation: fadeInOut 2s ease-in-out;';
+                message.textContent = newDirection === 0 ? '🔄 ¡Cambio a sentido horario!' : '🔄 ¡Cambio a sentido antihorario!';
+                
+                // Agregar animación CSS
+                const style = document.createElement('style');
+                style.textContent = '@keyframes fadeInOut { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } }';
+                document.head.appendChild(style);
+                
+                document.body.appendChild(message);
+                setTimeout(() => {
+                    document.body.removeChild(message);
+                    document.head.removeChild(style);
+                }, 2000);
+            }
+        }
+        
+        function showJokerSelection() {
+            document.getElementById('jokerModal').style.display = 'block';
+        }
+        
+        window.selectJokerValue = function(value) {
+            document.getElementById('jokerModal').style.display = 'none';
+            
+            // Crear carta virtual con el valor seleccionado
+            const virtualCard = { value: value };
+            
+            // Aplicar efecto según el valor seleccionado
+            switch (value) {
+                case '2': // Paso
+                    nextTurn(); // Saltar siguiente jugador
+                    showJokerEffect('2', '🚫 Joker como PASO - Siguiente jugador pierde turno');
+                    break;
+                case '8': // Reversa
+                    const newDirection = gameData.direction === 0 ? 1 : 0;
+                    set(ref(database, `games/${gameRoom}/direction`), newDirection);
+                    showDirectionChange(newDirection);
+                    showJokerEffect('8', '🔄 Joker como REVERSA - Cambio de dirección');
+                    break;
+                case '10': // Barre
+                    set(ref(database, `games/${gameRoom}/playPile`), []);
+                    showJokerEffect('10', '🧹 Joker como BARRE - Mesa limpia');
+                    break;
+                default:
+                    showJokerEffect(value, `🃏 Joker como ${value} - Carta normal`);
+                    break;
+            }
+        };
+        
+        function showJokerEffect(value, message) {
+            const effectMessage = document.createElement('div');
+            effectMessage.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(16, 185, 129, 0.9); color: white; padding: 20px 30px; border-radius: 15px; font-size: 18px; font-weight: bold; z-index: 1001; animation: jokerEffect 3s ease-in-out;';
+            effectMessage.innerHTML = `<div style="font-size: 24px; margin-bottom: 10px;">🃏➡️${value}</div><div>${message}</div>`;
+            
+            // Agregar animación CSS
+            const style = document.createElement('style');
+            style.textContent = '@keyframes jokerEffect { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-10deg); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(5deg); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8) rotate(10deg); } }';
+            document.head.appendChild(style);
+            
+            document.body.appendChild(effectMessage);
+            setTimeout(() => {
+                document.body.removeChild(effectMessage);
+                document.head.removeChild(style);
+            }, 3000);
+        }
         
         // Event listeners
         document.getElementById('startGameBtn').onclick = startGame;
