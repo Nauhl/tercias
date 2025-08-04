@@ -50,6 +50,8 @@
             position: relative;
             display: inline-block;
             margin: 10px;
+            width: 80px;
+            height: 120px;
         }
         .card-stack .card {
             position: absolute;
@@ -147,7 +149,7 @@
     </div>
     
     <!-- Juego principal -->
-    <div id="gameScreen" class="container" style="display: none;">
+    <div id="gameScreen" class="container" style="display: none; padding: 20px; max-width: 1200px; margin: 0 auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>🃏 Tercias Online</h1>
             <div>
@@ -156,21 +158,30 @@
             </div>
         </div>
         
-        <div class="scoreboard">
-            <h3>🏆 Jugadores</h3>
-            <div class="players-scores" id="playersScores"></div>
+        <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 20px; align-items: start;">
+            <!-- Columna izquierda: Jugadores -->
+            <div class="scoreboard">
+                <h3>🏆 Jugadores</h3>
+                <div class="players-scores" id="playersScores"></div>
+            </div>
+            
+            <!-- Columna central: Mesa de juego -->
+            <div style="text-align: center;">
+                <div class="current-player">
+                    <h3>Turno de: <span id="currentPlayerName">-</span></h3>
+                </div>
+                <div class="play-area" id="playArea"></div>
+                <div class="controls" style="margin-top: 20px;">
+                    <button id="endTurnBtn" style="padding: 12px 24px; font-size: 16px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer;">No puedo jugar (Comer cartas)</button>
+                </div>
+            </div>
+            
+            <!-- Columna derecha: Espacio libre -->
+            <div></div>
         </div>
         
-        <div class="current-player">
-            <h3>Turno de: <span id="currentPlayerName">-</span></h3>
-        </div>
-        
-        <div class="play-area" id="playArea"></div>
-        <div class="player-hand" id="playerHand"></div>
-        
-        <div class="controls">
-            <button id="endTurnBtn">No puedo jugar (Comer cartas)</button>
-        </div>
+        <!-- Área de cartas del jugador en la parte inferior -->
+        <div class="player-hand" id="playerHand" style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 15px;"></div>
     </div>
     
     <!-- Modal de reglas -->
@@ -394,11 +405,11 @@
         }
         
         function renderPlayerArea(player) {
-            let html = '<div style="display: flex; justify-content: space-around; align-items: center;">';
+            let html = '<div style="display: flex; justify-content: center; align-items: flex-start; gap: 40px; flex-wrap: wrap;">';
             
             // Cartas boca abajo (siempre visibles como stack)
             if ((player.faceDown?.length || 0) > 0) {
-                html += '<div><h4>Boca abajo:</h4><div class="card-stack">';
+                html += '<div style="text-align: center;"><h4 style="margin-bottom: 10px; color: #22c55e;">Boca abajo</h4><div class="card-stack">';
                 player.faceDown.forEach((card, index) => {
                     html += `<div class="card card-back" draggable="true" ondragstart="dragStart(event, 'faceDown', ${index})">?</div>`;
                 });
@@ -407,7 +418,7 @@
             
             // Cartas boca arriba (siempre visibles como stack)
             if ((player.faceUp?.length || 0) > 0) {
-                html += '<div><h4>Boca arriba:</h4><div class="card-stack">';
+                html += '<div style="text-align: center;"><h4 style="margin-bottom: 10px; color: #22c55e;">Boca arriba</h4><div class="card-stack">';
                 player.faceUp.forEach((card, index) => {
                     const canPlay = canPlayCard(card);
                     html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" 
@@ -420,7 +431,7 @@
             
             // Cartas en mano (solo si las hay)
             if ((player.hand?.length || 0) > 0) {
-                html += '<div><h4>Tu mano:</h4><div style="display: flex; gap: 5px;">';
+                html += '<div style="text-align: center;"><h4 style="margin-bottom: 10px; color: #22c55e;">Tu mano</h4><div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">';
                 player.hand.forEach((card, index) => {
                     const canPlay = canPlayCard(card);
                     html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''}" 
