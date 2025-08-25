@@ -149,6 +149,7 @@
         <div class="login-form">
             <h1>🃏 Tercias Online</h1>
             <p>Ingresa tu nombre y sala para jugar</p>
+            <div style="font-size: 12px; color: #ccc; margin: 10px 0; font-style: italic;">Creado y desarrollado por Silverio Diaz Ordaz y Nauhl Valdez su panita</div>
             <input type="text" id="playerName" placeholder="Tu nombre" maxlength="15">
             <br>
             <input type="text" id="roomId" placeholder="Sala (4 dígitos)" maxlength="4" style="text-align: center;">
@@ -161,6 +162,7 @@
     <div id="waitingRoom" class="waiting-room" style="display: none;">
         <h2>🕐 Sala de Espera</h2>
         <p>Sala: <span id="roomDisplay" style="font-weight: bold; color: #22c55e;"></span></p>
+        <div style="font-size: 12px; color: #ccc; margin: 10px 0; font-style: italic;">Creado y desarrollado por Silverio Diaz Ordaz y Nauhl Valdez su panita</div>
         <div id="playersList"></div>
         <p>Jugadores conectados: <span id="playerCount">0</span></p>
         <button id="startGameBtn" style="display: none; margin-top: 15px; padding: 10px 20px; font-size: 16px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer;">🎮 Iniciar Juego</button>
@@ -171,7 +173,10 @@
     <!-- Juego principal -->
     <div id="gameScreen" class="container" style="display: none; padding: 20px; max-width: 1200px; margin: 0 auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1>🃏 Tercias Online</h1>
+            <div>
+                <h1>🃏 Tercias Online</h1>
+                <div style="font-size: 12px; color: #ccc; font-style: italic;">Creado y desarrollado por Silverio Diaz Ordaz y Nauhl Valdez su panita</div>
+            </div>
             <div>
                 <button id="gameRulesBtn" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin: 5px;">📋 Reglas</button>
                 <button id="exitGameBtn" class="exit-btn">🚪 Salir</button>
