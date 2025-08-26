@@ -515,9 +515,8 @@
             if ((player.faceDown?.length || 0) > 0) {
                 html += '<div style="text-align: center;"><small style="color: #ccc;">Boca abajo</small><div class="card-row">';
                 for (let i = 0; i < player.faceDown.length; i++) {
-                    const draggable = isMe ? 'draggable="true" ondragstart="dragStart(event, \'faceDown\', ' + i + ')"' : '';
                     const playerCardClass = `player-${playerIndex}-card`;
-                    html += `<div class="card card-back ${playerCardClass}" ${draggable}>?</div>`;
+                    html += `<div class="card card-back ${playerCardClass}">?</div>`;
                 }
                 html += '</div></div>';
             }
@@ -577,6 +576,12 @@
                 return;
             }
             
+            // Solo permitir arrastrar cartas de mano y boca arriba
+            if (source !== 'hand' && source !== 'faceUp') {
+                event.preventDefault();
+                return;
+            }
+            
             draggedCard = { source, index };
             event.dataTransfer.effectAllowed = 'move';
         };
@@ -610,6 +615,11 @@
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
             
+            // Solo permitir drag and drop para cartas de mano y boca arriba
+            if (source !== 'hand' && source !== 'faceUp') {
+                return;
+            }
+            
             const myPlayer = gameData.players[myPlayerId];
             let cardArray;
             
@@ -619,9 +629,6 @@
                     break;
                 case 'faceUp':
                     cardArray = myPlayer.faceUp;
-                    break;
-                case 'faceDown':
-                    cardArray = myPlayer.faceDown;
                     break;
                 default:
                     return;
