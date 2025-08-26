@@ -303,6 +303,7 @@
         let gameRoom = null;
         let gameData = { players: {}, currentPlayer: 0, gameStarted: false };
         let selectedCards = [];
+        let swapPhase = false;
         
         // Generar sala aleatoria al cargar
         window.addEventListener('load', () => {
@@ -402,6 +403,7 @@
             updates[`games/${gameRoom}/deck`] = deck;
             updates[`games/${gameRoom}/playPile`] = [];
             updates[`games/${gameRoom}/gameStarted`] = true;
+            updates[`games/${gameRoom}/swapPhase`] = true;
             updates[`games/${gameRoom}/currentPlayer`] = 0;
             updates[`games/${gameRoom}/direction`] = 0; // 0 = horario (derecha), 1 = antihorario (izquierda)
             
@@ -418,26 +420,41 @@
         function updateGameUI() {
             const players = Object.values(gameData.players);
             const playerIds = Object.keys(gameData.players);
+            swapPhase = gameData.swapPhase || false;
             
-            // Mostrar turno actual con color
-            if (players[gameData.currentPlayer]) {
-                const currentPlayerElement = document.getElementById('currentPlayerName');
-                const playerColors = ['#60a5fa', '#f87171', '#4ade80', '#fb923c']; // Colores más claros para texto
-                const currentPlayerColor = playerColors[gameData.currentPlayer] || '#22c55e';
+            if (swapPhase) {
+                // Fase de intercambio
+                document.getElementById('currentPlayerName').textContent = 'Fase de intercambio';
+                document.getElementById('currentPlayerName').style.color = '#f59e0b';
+                renderSwapArea();
+            } else {
+                // Mostrar turno actual con color
+                if (players[gameData.currentPlayer]) {
+                    const currentPlayerElement = document.getElementById('currentPlayerName');
+                    const playerColors = ['#60a5fa', '#f87171', '#4ade80', '#fb923c']; // Colores más claros para texto
+                    const currentPlayerColor = playerColors[gameData.currentPlayer] || '#22c55e';
+                    
+                    currentPlayerElement.textContent = players[gameData.currentPlayer].name;
+                    currentPlayerElement.style.color = currentPlayerColor;
+                    currentPlayerElement.style.textShadow = `0 0 10px ${currentPlayerColor}50`;
+                }
                 
-                currentPlayerElement.textContent = players[gameData.currentPlayer].name;
-                currentPlayerElement.style.color = currentPlayerColor;
-                currentPlayerElement.style.textShadow = `0 0 10px ${currentPlayerColor}50`;
+                // Mostrar área de juego
+                renderPlayArea();
             }
             
             // Actualizar indicador de dirección
             updateDirectionIndicator();
             
-            // Mostrar área de juego
-            renderPlayArea();
-            
             // Distribuir jugadores alrededor de la mesa
             renderAllPlayers(players, playerIds);
+        }
+        
+        function renderSwapArea() {
+            let html = '<h3>Organiza tus cartas</h3>';
+            html += '<p style="color: #ccc; font-size: 14px;">Arrastra cartas entre tu mano y cartas boca arriba</p>';
+            html += '<button onclick="finishSwap()" style="padding: 10px 20px; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer; margin: 10px;">✅ Listo</button>';
+            document.getElementById('playArea').innerHTML = html;
         }
         
         function renderPlayArea() {
@@ -515,24 +532,33 @@
             if ((player.faceDown?.length || 0) > 0) {
                 html += '<div style="text-align: center;"><small style="color: #ccc;">Boca abajo</small><div class="card-row">';
                 for (let i = 0; i < player.faceDown.length; i++) {
+                    const draggable = isMe ? 'draggable="true" ondragstart="dragStart(event, \'faceDown\', ' + i + ')"' : '';
                     const playerCardClass = `player-${playerIndex}-card`;
-                    html += `<div class="card card-back ${playerCardClass}">?</div>`;
+                    html += `<div class="card card-back ${playerCardClass}" ${draggable}>?</div>`;
                 }
                 html += '</div></div>';
             }
             
             // Cartas boca arriba (visibles para todos en fila)
             if ((player.faceUp?.length || 0) > 0) {
-                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca arriba</small><div class="card-row">';
+                html += '<div style="text-align: center;"><small style="color: #ccc;">Boca arriba</small>';
+                if (swapPhase && isMe) {
+                    html += '<div class="drop-zone" style="min-height: 80px; margin: 5px;" ondrop="dropSwap(event, \'faceUp\')" ondragover="allowDrop(event)">';
+                }
+                html += '<div class="card-row">';
                 player.faceUp.forEach((card, index) => {
-                    const canPlay = isMe && canPlayCard(card);
-                    const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'faceUp', ${index})"` : '';
+                    const canPlay = isMe && (swapPhase || canPlayCard(card));
+                    const draggable = (isMe && (swapPhase || canPlay)) ? `draggable="true" ondragstart="dragStart(event, 'faceUp', ${index})"` : '';
                     const playerCardClass = `player-${playerIndex}-card`;
                     html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable}>
                         ${card.value}${card.suit}
                     </div>`;
                 });
-                html += '</div></div>';
+                html += '</div>';
+                if (swapPhase && isMe) {
+                    html += '</div>';
+                }
+                html += '</div>';
             }
             
             // Cartas en mano
@@ -540,15 +566,21 @@
                 html += '<div style="text-align: center;"><small style="color: #ccc;">Mano</small><div style="display: flex; gap: 5px; justify-content: center; margin-top: 5px;">';
                 
                 if (isMe) {
+                    if (swapPhase) {
+                        html += '<div class="drop-zone" style="min-height: 80px; margin: 5px;" ondrop="dropSwap(event, \'hand\')" ondragover="allowDrop(event)">';
+                    }
                     // Mostrar mis cartas
                     player.hand.forEach((card, index) => {
-                        const canPlay = canPlayCard(card);
-                        const draggable = canPlay ? `draggable="true" ondragstart="dragStart(event, 'hand', ${index})"` : '';
+                        const canPlay = swapPhase || canPlayCard(card);
+                        const draggable = (swapPhase || canPlay) ? `draggable="true" ondragstart="dragStart(event, 'hand', ${index})"` : '';
                         const playerCardClass = `player-${playerIndex}-card`;
                         html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable}>
                             ${card.value}${card.suit}
                         </div>`;
                     });
+                    if (swapPhase) {
+                        html += '</div>';
+                    }
                 } else {
                     // Mostrar cartas boca abajo para otros jugadores
                     for (let i = 0; i < player.hand.length; i++) {
@@ -572,12 +604,6 @@
         window.dragStart = function(event, source, index) {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) {
-                event.preventDefault();
-                return;
-            }
-            
-            // Solo permitir arrastrar cartas de mano y boca arriba
-            if (source !== 'hand' && source !== 'faceUp') {
                 event.preventDefault();
                 return;
             }
@@ -607,18 +633,51 @@
             if (!draggedCard) return;
             
             const { source, index } = draggedCard;
+            if (swapPhase) {
+                // En fase de intercambio, no se puede jugar cartas
+                return;
+            }
             playCard(source, index);
             draggedCard = null;
+        };
+        
+        window.dropSwap = function(event, targetSource) {
+            event.preventDefault();
+            
+            if (!draggedCard || !swapPhase) return;
+            
+            const { source, index } = draggedCard;
+            
+            // Solo permitir intercambio entre mano y faceUp
+            if ((source === 'hand' && targetSource === 'faceUp') || 
+                (source === 'faceUp' && targetSource === 'hand')) {
+                swapCards(source, index, targetSource);
+            }
+            
+            draggedCard = null;
+        };
+        
+        function swapCards(fromSource, fromIndex, toSource) {
+            const myPlayer = gameData.players[myPlayerId];
+            
+            const fromArray = fromSource === 'hand' ? myPlayer.hand : myPlayer.faceUp;
+            const toArray = toSource === 'hand' ? myPlayer.hand : myPlayer.faceUp;
+            
+            if (toArray.length < 3) {
+                const card = fromArray.splice(fromIndex, 1)[0];
+                toArray.push(card);
+                
+                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
+            }
+        }
+        
+        window.finishSwap = function() {
+            set(ref(database, `games/${gameRoom}/swapPhase`), false);
         };
         
         function playCard(source, index) {
             const playerIds = Object.keys(gameData.players);
             if (playerIds[gameData.currentPlayer] !== myPlayerId) return;
-            
-            // Solo permitir drag and drop para cartas de mano y boca arriba
-            if (source !== 'hand' && source !== 'faceUp') {
-                return;
-            }
             
             const myPlayer = gameData.players[myPlayerId];
             let cardArray;
@@ -629,6 +688,9 @@
                     break;
                 case 'faceUp':
                     cardArray = myPlayer.faceUp;
+                    break;
+                case 'faceDown':
+                    cardArray = myPlayer.faceDown;
                     break;
                 default:
                     return;
