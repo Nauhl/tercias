@@ -549,8 +549,9 @@
                 player.faceUp.forEach((card, index) => {
                     const canPlay = isMe && (swapPhase || canPlayCard(card));
                     const draggable = (isMe && (swapPhase || canPlay)) ? `draggable="true" ondragstart="dragStart(event, 'faceUp', ${index})"` : '';
+                    const dropEvents = (swapPhase && isMe) ? `ondrop="dropSwap(event, 'faceUp')" ondragover="allowDrop(event)"` : '';
                     const playerCardClass = `player-${playerIndex}-card`;
-                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable}>
+                    html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable} ${dropEvents}>
                         ${card.value}${card.suit}
                     </div>`;
                 });
@@ -573,8 +574,9 @@
                     player.hand.forEach((card, index) => {
                         const canPlay = swapPhase || canPlayCard(card);
                         const draggable = (swapPhase || canPlay) ? `draggable="true" ondragstart="dragStart(event, 'hand', ${index})"` : '';
+                        const dropEvents = (swapPhase && isMe) ? `ondrop="dropSwap(event, 'hand')" ondragover="allowDrop(event)"` : '';
                         const playerCardClass = `player-${playerIndex}-card`;
-                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable}>
+                        html += `<div class="card card-front ${card.color} ${canPlay ? 'playable' : ''} ${playerCardClass}" ${draggable} ${dropEvents}>
                             ${card.value}${card.suit}
                         </div>`;
                     });
@@ -651,24 +653,40 @@
             // Solo permitir intercambio entre mano y faceUp
             if ((source === 'hand' && targetSource === 'faceUp') || 
                 (source === 'faceUp' && targetSource === 'hand')) {
-                swapCards(source, index, targetSource);
+                
+                // Obtener posición del drop
+                const dropTarget = event.target.closest('.card');
+                let targetIndex = -1;
+                
+                if (dropTarget) {
+                    const cards = Array.from(dropTarget.parentElement.querySelectorAll('.card'));
+                    targetIndex = cards.indexOf(dropTarget);
+                }
+                
+                swapCards(source, index, targetSource, targetIndex);
             }
             
             draggedCard = null;
         };
         
-        function swapCards(fromSource, fromIndex, toSource) {
+        function swapCards(fromSource, fromIndex, toSource, toIndex = -1) {
             const myPlayer = gameData.players[myPlayerId];
             
             const fromArray = fromSource === 'hand' ? myPlayer.hand : myPlayer.faceUp;
             const toArray = toSource === 'hand' ? myPlayer.hand : myPlayer.faceUp;
             
-            if (toArray.length < 3) {
+            if (toIndex >= 0 && toIndex < toArray.length) {
+                // Intercambio directo de cartas
+                const temp = fromArray[fromIndex];
+                fromArray[fromIndex] = toArray[toIndex];
+                toArray[toIndex] = temp;
+            } else if (toArray.length < 3) {
+                // Mover carta si hay espacio
                 const card = fromArray.splice(fromIndex, 1)[0];
                 toArray.push(card);
-                
-                set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
             }
+            
+            set(ref(database, `games/${gameRoom}/players/${myPlayerId}`), myPlayer);
         }
         
         window.finishSwap = function() {
