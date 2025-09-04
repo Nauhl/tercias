@@ -1,9 +1,10 @@
 {
-  "version": 2,
+  "buildCommand": "",
+  "outputDirectory": ".",
   "rewrites": [
     {
       "source": "/",
-      "destination": "/online.html"
+      "destination": "/index.html"
     }
   ]
 }
