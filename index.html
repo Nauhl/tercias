@@ -155,6 +155,7 @@
             <input type="text" id="roomId" placeholder="Sala (4 dígitos)" maxlength="4" style="text-align: center;">
             <br>
             <button onclick="joinGame()">Unirse al Juego</button>
+            <button id="adminBtn" onclick="clearAllSessions()" style="display: none; background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px;">🗑️ Cerrar todas las sesiones</button>
         </div>
     </div>
     
@@ -995,6 +996,24 @@
         document.getElementById('playerName').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') document.getElementById('roomId').focus();
         });
+        
+        document.getElementById('playerName').addEventListener('input', (e) => {
+            const adminBtn = document.getElementById('adminBtn');
+            if (e.target.value.toLowerCase() === 'administrador') {
+                adminBtn.style.display = 'block';
+            } else {
+                adminBtn.style.display = 'none';
+            }
+        });
+        
+        window.clearAllSessions = function() {
+            if (confirm('¿Estás seguro de que quieres cerrar todas las sesiones activas?')) {
+                set(ref(database, 'games'), null).then(() => {
+                    alert('Todas las sesiones han sido cerradas');
+                    location.reload();
+                });
+            }
+        };
         
         document.getElementById('roomId').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') joinGame();
